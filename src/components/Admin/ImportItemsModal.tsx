@@ -1,3 +1,5 @@
+// src/components/Admin/ImportItemsModal.tsx
+
 import React, { useState } from 'react';
 import { X, Upload, FileText, Table, AlertCircle, CheckCircle, Trash2, List } from 'lucide-react';
 import { useStore } from '../../store/useStore';
@@ -27,7 +29,8 @@ interface ImportItem {
 type ImportMethod = 'excel' | 'csv' | 'text' | 'preset';
 
 export function ImportItemsModal({ event, onClose }: ImportItemsModalProps) {
-  const { menuItems, addMenuItem } = useStore();
+  // *** תיקון: הסרנו את menuItems מהשורה הזו ***
+  const { addMenuItem } = useStore();
   const { user: authUser } = useAuth();
   const [activeMethod, setActiveMethod] = useState<ImportMethod>('preset');
   const [textInput, setTextInput] = useState('');
@@ -201,7 +204,6 @@ export function ImportItemsModal({ event, onClose }: ImportItemsModalProps) {
         } catch (error) { console.error(`Error importing item ${item.name}:`, error); errorCount++; }
       }
       
-      // Update store with all new items at once
       if (newItemsForStore.length > 0) {
         newItemsForStore.forEach(item => addMenuItem(item));
       }
@@ -224,9 +226,14 @@ export function ImportItemsModal({ event, onClose }: ImportItemsModalProps) {
       toast.error('יש לבחור לפחות פריט אחד לייבוא');
       return;
     }
-    const existingNames = new Set(menuItems.filter(mi => mi.eventId === event.id).map(mi => mi.name.trim().toLowerCase()));
+    
+    // *** תיקון: שימוש ב-event.menuItems במקום menuItems מה-Store ***
+    const eventMenuItems = event.menuItems ? Object.values(event.menuItems) : [];
+    const existingNames = new Set(eventMenuItems.map(mi => mi.name.trim().toLowerCase()));
+    
     const duplicateItems = selectedItems.filter(item => existingNames.has(item.name.trim().toLowerCase()));
     const newItems = selectedItems.filter(item => !existingNames.has(item.name.trim().toLowerCase()));
+    
     if (duplicateItems.length > 0) {
       setItemsToImport({ newItems, duplicateItems });
       setShowDuplicateConfirm(true);
