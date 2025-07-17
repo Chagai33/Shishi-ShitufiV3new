@@ -1,6 +1,5 @@
 {
   "rules": {
-    // פרטי המשתמשים - רק משתמש יכול לקרוא ולשנות את פרטיו
     "users": {
       "$uid": {
         ".read": "$uid === auth.uid",
@@ -8,55 +7,42 @@
       }
     },
 
-    // אוסף האירועים הגלובלי
     "events": {
-      // הרשאה לקרוא את כל האירועים למשתמשים מחוברים
+      // --- הוספת האינדקס החסר ---
+      ".indexOn": ["organizerId"],
+      
       ".read": "auth != null",
-      
-      // הרשאה ליצור אירועים חדשים
       ".write": "auth != null",
-      
       "$eventId": {
-        // --- הרשאות קריאה ---
-        // כל משתמש מאומת (גם אנונימי) יכול לקרוא את נתוני האירוע
         ".read": "auth != null",
-
-        // --- הרשאות כתיבה ---
-        // עדכון ומחיקה כלליים של האירוע: רק המארגן הבעלים
         ".write": "auth != null && ( !data.exists() || data.child('organizerId').val() === auth.uid || newData.child('organizerId').val() === auth.uid )",
-
-        // הרשאות כתיבה מפורטות לתתי-אוספים
         "details": {
           ".write": "auth != null && ( !data.exists() || root.child('events').child($eventId).child('organizerId').val() === auth.uid )"
         },
         "menuItems": {
-          // **הערה: הכלל המקורי נשמר** - רק המארגן יכול לערוך את התפריט
-          ".write": "auth != null && ( !data.exists() || root.child('events').child($eventId).child('organizerId').val() === auth.uid )"
+          ".write": "auth != null",
+          "$itemId": {
+            ".write": "auth != null"
+          }
         },
         "participants": {
           "$participantId": {
-            // כל משתמש מאומת יכול להוסיף או להסיר את עצמו בלבד
             ".write": "auth != null && $participantId === auth.uid"
           }
         },
         "assignments": {
           "$assignmentId": {
-            // מאפשר למשתתף ליצור/למחוק שיבוץ של עצמו, ולמארגן למחוק כל שיבוץ באירוע
             ".write": "auth != null && ( (newData.exists() && newData.child('userId').val() === auth.uid) || (data.exists() && data.child('userId').val() === auth.uid) || (data.exists() && !newData.exists() && root.child('events').child($eventId).child('organizerId').val() === auth.uid) )"
           }
         }
       }
     },
 
-    // --- תוספות חדשות ---
-
-    // רשימות מוכנות מראש - קריאה לכל משתמש מחובר, כתיבה רק לאדמינים
     "presetLists": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
     },
     
-    // רשימת אדמינים - קריאה לכולם, כתיבה רק לאדמינים אחרים
     "admins": {
       ".read": true,
       "$uid": {
