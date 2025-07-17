@@ -1,0 +1,64 @@
+{
+  "rules": {
+    // פרטי המארגנים - רק המארגן יכול לקרוא ולשנות את פרטיו
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+
+    // אוסף האירועים הגלובלי
+    "events": {
+      // הרשאה לקרוא את כל האירועים למשתמשים מחוברים
+      ".read": "auth != null",
+      
+      // הרשאה ליצור אירועים חדשים
+      ".write": "auth != null",
+      
+      "$eventId": {
+        // --- הרשאות קריאה ---
+        // כל משתמש מאומת (גם אנונימי) יכול לקרוא את נתוני האירוע
+        ".read": "auth != null",
+
+        // --- הרשאות כתיבה ---
+        // עדכון ומחיקה כלליים של האירוע: רק המארגן הבעלים
+        ".write": "auth != null && (
+          !data.exists() || 
+          data.child('organizerId').val() === auth.uid || 
+          newData.child('organizerId').val() === auth.uid
+        )",
+
+        // הרשאות כתיבה מפורטות לתתי-אוספים
+        "details": {
+          ".write": "auth != null && (
+            !data.exists() || 
+            root.child('events').child($eventId).child('organizerId').val() === auth.uid
+          )"
+        },
+        "menuItems": {
+          ".write": "auth != null && (
+            !data.exists() || 
+            root.child('events').child($eventId).child('organizerId').val() === auth.uid
+          )"
+        },
+        "participants": {
+          "$participantId": {
+            // כל משתמש מאומת יכול להוסיף או להסיר את עצמו בלבד
+            ".write": "auth != null && $participantId === auth.uid"
+          }
+        },
+        "assignments": {
+          "$assignmentId": {
+            // מאפשר למשתתף ליצור/למחוק שיבוץ של עצמו, ולמארגן למחוק כל שיבוץ באירוע
+            ".write": "auth != null && (
+              (newData.exists() && newData.child('userId').val() === auth.uid) || 
+              (data.exists() && data.child('userId').val() === auth.uid) || 
+              (data.exists() && !newData.exists() && root.child('events').child($eventId).child('organizerId').val() === auth.uid)
+            )"
+          }
+        }
+      }
+    }
+  }
+}
