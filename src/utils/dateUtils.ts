@@ -1,12 +1,14 @@
 export function formatDate(dateStr: string): string {
   try {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('he-IL', {
+    const options: Intl.DateTimeFormatOptions = {
       weekday: 'long',
       year: 'numeric',
-      month: 'long',
+      month: 'numeric',
       day: 'numeric'
-    });
+    };
+    // This will format to something like "יום שני, 21.7.2025"
+    return date.toLocaleDateString('he-IL', options);
   } catch (error) {
     console.error('Error formatting date:', error);
     return dateStr;

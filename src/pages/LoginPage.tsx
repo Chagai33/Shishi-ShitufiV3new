@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+// 1. ייבוא sendPasswordResetEmail
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'; 
 import { auth } from '../lib/firebase';
 import { FirebaseService } from '../services/firebaseService';
 import { toast } from 'react-hot-toast';
@@ -17,18 +18,38 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  // 2. פונקציה חדשה ומאובטחת לאיפוס סיסמה
+  const handlePasswordReset = async () => {
+    if (!email) {
+      toast.error("כדי לאפס סיסמה, יש להזין כתובת אימייל.");
+      return;
+    }
+    
+    // הוספת console.log כדי לוודא שהאימייל הנכון נשלח
+    console.log(`Attempting to send password reset to: ${email}`);
+    
+    setIsLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success("נשלח אליך מייל עם קישור לאיפוס סיסמה. בדוק גם את תיקיית הספאם.");
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      toast.error("שגיאה בשליחת המייל. ודא שהכתובת נכונה ונסה שוב.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       if (isLoginView) {
-        // --- לוגיקת התחברות ---
         await signInWithEmailAndPassword(auth, email, password);
         toast.success('התחברת בהצלחה!');
-        navigate('/dashboard'); // העברה לדאשבורד לאחר התחברות
+        navigate('/dashboard');
       } else {
-        // --- לוגיקת הרשמה ---
         if (!displayName.trim()) {
           toast.error('יש להזין שם להצגה');
           setIsLoading(false);
@@ -36,7 +57,6 @@ const LoginPage: React.FC = () => {
         }
         await FirebaseService.createOrganizer(email, password, displayName);
         toast.success('נרשמת בהצלחה! ברוך הבא.');
-        // לאחר הרשמה, onAuthStateChanged ב-useAuth יטפל בהעברה לדאשבורד
         navigate('/dashboard');
       }
     } catch (error: any) {
@@ -115,9 +135,23 @@ const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                סיסמה
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">
+                  סיסמה
+                </label>
+                {/* --- 3. הקישור לאיפוס סיסמה --- */}
+                {isLoginView && (
+                  <div className="text-sm">
+                    <button
+                      type="button" // חשוב שזה יהיה type="button" כדי לא לשלוח את הטופס
+                      onClick={handlePasswordReset}
+                      className="font-medium text-orange-600 hover:text-orange-500"
+                    >
+                      שכחתי סיסמה
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="mt-1 relative">
                 <input
                   type={showPassword ? 'text' : 'password'}

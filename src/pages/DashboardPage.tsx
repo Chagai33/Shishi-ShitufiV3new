@@ -19,21 +19,35 @@ const EventCard: React.FC<{ event: ShishiEvent, onDelete: (eventId: string, titl
   const eventUrl = `${window.location.origin}/event/${event.id}`;
   const isPast = new Date(event.details.date) < new Date();
 
-  const copyToClipboard = () => {
+  const copyToClipboard = (e: React.MouseEvent) => {
+    e.stopPropagation(); // מונע ניווט בעת לחיצה על הכפתור
     navigator.clipboard.writeText(eventUrl);
     toast.success('הקישור הועתק!');
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // מונע ניווט בעת לחיצה על הכפתור
+    onDelete(event.id, event.details.title);
+  };
+  
+  const handleViewClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // מונע ניווט בעת לחיצה על הכפתור
+    navigate(`/event/${event.id}`);
   };
 
   const menuItemsCount = event.menuItems ? Object.keys(event.menuItems).length : 0;
 
   return (
-    <div className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex flex-col border-r-4 ${
-      isPast 
-        ? 'border-neutral-400 opacity-75' 
-        : event.details.isActive 
-          ? 'border-accent hover:scale-[1.02]' 
-          : 'border-neutral-300'
-    }`}>
+    // --- שינוי 1: הוספת onClick ו-cursor-pointer לכל הכרטיס ---
+    <div 
+      onClick={() => navigate(`/event/${event.id}`)}
+      className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex flex-col cursor-pointer border-r-4 ${
+        isPast 
+          ? 'border-neutral-400 opacity-75' 
+          : event.details.isActive 
+            ? 'border-accent hover:scale-[1.02]' 
+            : 'border-neutral-300'
+      }`}>
       <div className="p-6 flex-grow">
         <div className="flex justify-between items-start mb-3">
           <h3 className="text-lg font-bold text-neutral-900">{event.details.title}</h3>
@@ -53,14 +67,15 @@ const EventCard: React.FC<{ event: ShishiEvent, onDelete: (eventId: string, titl
         </div>
       </div>
       <div className="bg-neutral-50 p-4 border-t flex justify-between items-center rounded-b-xl">
+        {/* --- שינוי 2: הוספת e.stopPropagation() לכפתורים --- */}
         <button onClick={copyToClipboard} className="flex items-center text-sm text-info hover:text-info/80 font-semibold">
           <Share2 size={16} className="ml-1" /> שתף
         </button>
         <div className="flex items-center space-x-2 rtl:space-x-reverse">
-          <button onClick={() => navigate(`/event/${event.id}`)} className="p-2 text-neutral-500 hover:bg-neutral-200 rounded-full" title="צפה באירוע">
+          <button onClick={handleViewClick} className="p-2 text-neutral-500 hover:bg-neutral-200 rounded-full" title="צפה באירוע">
             <Eye size={18} />
           </button>
-          <button onClick={() => onDelete(event.id, event.details.title)} className="p-2 text-neutral-500 hover:bg-error/10 hover:text-error rounded-full" title="מחק אירוע">
+          <button onClick={handleDeleteClick} className="p-2 text-neutral-500 hover:bg-error/10 hover:text-error rounded-full" title="מחק אירוע">
             <Trash2 size={18} />
           </button>
         </div>

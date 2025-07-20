@@ -8,8 +8,8 @@ import { auth } from '../lib/firebase';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { ShishiEvent, MenuItem as MenuItemType, Assignment as AssignmentType, Participant, MenuCategory } from '../types';
-import { Calendar, Clock, MapPin, ChefHat, User as UserIcon, AlertCircle, Edit, X, Search, ArrowRight, Plus, Trash2, MessageSquare, Hash, Upload } from 'lucide-react';
-import { isEventPast } from '../utils/dateUtils';
+import { Calendar, Clock, MapPin, User as UserIcon, Edit, X, Search, ArrowRight, Plus, Trash2, MessageSquare, Hash, Upload } from 'lucide-react';
+import { isEventPast, formatDate, formatTime } from '../utils/dateUtils';
 
 // Category names mapping
 const categoryNames: { [key: string]: string } = {
@@ -358,7 +358,6 @@ const EventPage: React.FC = () => {
         return <LoadingSpinner />;
     }
 
-    const participantName = participants.find(p => p.id === localUser?.uid)?.name || 'אורח';
     const isEventActive = currentEvent.details.isActive && !isEventPast(currentEvent.details.date, currentEvent.details.time);
     const isOrganizer = localUser?.uid === currentEvent.organizerId;
 
@@ -367,14 +366,14 @@ const EventPage: React.FC = () => {
             <header className="bg-white shadow-sm p-4 text-center sticky top-0 z-40"><Link to="/" className="text-accent font-bold text-xl">שישי שיתופי</Link></header>
             <main className="max-w-4xl mx-auto py-8 px-4">
                 <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-                    <h1 className="text-3xl font-bold text-neutral-900 mb-2">{currentEvent.details.title}</h1>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-500 mb-4">
-                        <p className="flex items-center"><Calendar size={14} className="ml-1" /> {new Date(currentEvent.details.date).toLocaleDateString('he-IL')}</p>
-                        <p className="flex items-center"><Clock size={14} className="ml-1" /> {currentEvent.details.time}</p>
-                        <p className="flex items-center"><MapPin size={14} className="ml-1" /> {currentEvent.details.location}</p>
-                        <p className="flex items-center"><UserIcon size={14} className="ml-1" /> מארגן: {currentEvent.organizerName}</p>
-                    </div>
-                </div>
+    <h1 className="text-xl sm:text-2xl font-bold text-neutral-800 mb-4">{currentEvent.details.title}</h1>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-500 mb-4">
+        <p className="flex items-center"><Calendar size={14} className="ml-1.5" /> {formatDate(currentEvent.details.date)}</p>
+        <p className="flex items-center"><Clock size={14} className="ml-1.5" /> {formatTime(currentEvent.details.time)}</p>
+        <p className="flex items-center"><MapPin size={14} className="ml-1.5" /> {currentEvent.details.location}</p>
+        <p className="flex items-center"><UserIcon size={14} className="ml-1" /> מארגן: {currentEvent.organizerName}</p>
+    </div>
+</div>
                 <div className="bg-white rounded-xl shadow-md p-6 mb-8">
                     <div className="flex items-center space-x-4 rtl:space-x-reverse">
                         <div className="flex-grow relative">
