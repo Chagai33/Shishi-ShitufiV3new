@@ -1,3 +1,5 @@
+// src/components/Events/UserMenuItemForm.tsx
+
 import React, { useState, useEffect } from 'react';
 import { X, ChefHat, Hash, MessageSquare, User as UserIcon, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
@@ -30,7 +32,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
     category: 'main' as MenuCategory,
     quantity: 1,
     notes: '',
-    assignToSelf: true
   });
 
   const categoryOptions = [
@@ -160,40 +161,24 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
       
       console.log('📋 New item data:', newItemData);
       console.log('🔗 Firebase path for item:', `events/${event.id}/menuItems`);
-
-      if (formData.assignToSelf) {
-        console.log('🎯 Adding item with self-assignment...');
-        // הוספת פריט עם שיבוץ אוטומטי
-        const itemId = await FirebaseService.addMenuItemAndAssign(
-          event.id,
-          newItemData,
-          authUser.uid,
-          finalUserName
-        );
-        
-        if (itemId) {
-          console.log('✅ Item added and assigned successfully, ID:', itemId);
-          // הוספה לסטור המקומי
-          addMenuItem({ ...newItemData, id: itemId });
-          toast.success('הפריט נוסף ושובץ בהצלחה!');
-        } else {
-          console.error('❌ Failed to get item ID');
-          throw new Error('לא התקבל מזהה פריט');
-        }
+      
+      console.log('🎯 Adding item with self-assignment...');
+      // הוספת פריט עם שיבוץ אוטומטי
+      const itemId = await FirebaseService.addMenuItemAndAssign(
+        event.id,
+        newItemData,
+        authUser.uid,
+        finalUserName
+      );
+      
+      if (itemId) {
+        console.log('✅ Item added and assigned successfully, ID:', itemId);
+        // הוספה לסטור המקומי
+        addMenuItem({ ...newItemData, id: itemId });
+        toast.success('הפריט נוסף ושובץ בהצלחה!');
       } else {
-        console.log('📝 Adding item without assignment...');
-        // הוספת פריט בלבד
-        const itemId = await FirebaseService.addMenuItem(event.id, newItemData);
-        
-        if (itemId) {
-          console.log('✅ Item added successfully, ID:', itemId);
-          // הוספה לסטור המקומי
-          addMenuItem({ ...newItemData, id: itemId });
-          toast.success('הפריט נוסף בהצלחה!');
-        } else {
-          console.error('❌ Failed to get item ID');
-          throw new Error('לא התקבל מזהה פריט');
-        }
+        console.error('❌ Failed to get item ID');
+        throw new Error('לא התקבל מזהה פריט');
       }
 
       console.log('🎉 Form submission completed successfully');
@@ -356,7 +341,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
           </div>
 
           {/* Notes */}
-          <div className="mb-4">
+          <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               הערות (אופציונלי)
             </label>
@@ -373,23 +358,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
             </div>
           </div>
 
-          {/* Assign to Self */}
-          <div className="mb-6">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={formData.assignToSelf}
-                onChange={(e) => handleInputChange('assignToSelf', e.target.checked)}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                disabled={isSubmitting}
-              />
-              <span className="mr-2 text-sm text-gray-700">שבץ אותי לפריט זה אוטומטית</span>
-            </label>
-            <p className="text-xs text-gray-500 mt-1">
-              אם תבחר באפשרות זו, הפריט יתווסף לרשימה ותשובץ אליו מיד
-            </p>
-          </div>
-
           {/* Actions */}
           <div className="flex space-x-3 rtl:space-x-reverse">
             <button
@@ -403,7 +371,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
                   מוסיף...
                 </>
               ) : (
-                'הוסף פריט'
+                'הוסף ושבץ אותי'
               )}
             </button>
             <button

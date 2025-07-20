@@ -1,9 +1,10 @@
+// src/components/Admin/EventForm.tsx
 import React, { useState } from 'react';
 import { X, Calendar, Clock, MapPin, User, FileText, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { useAuth } from '../../hooks/useAuth';
 import { FirebaseService } from '../../services/firebaseService';
-import { ShishiEvent } from '../../types';
+import { ShishiEvent, EventDetails } from '../../types';
 import { getNextFriday } from '../../utils/dateUtils';
 import toast from 'react-hot-toast';
 
@@ -18,25 +19,26 @@ interface FormErrors {
   time?: string;
   location?: string;
   hostName?: string;
+  endDate?: string;
 }
 
 export function EventForm({ event, onClose }: EventFormProps) {
-  const { user, addEvent, updateEvent } = useStore();
+  const { addEvent, updateEvent } = useStore();
   const { user: authUser } = useAuth();
-  const isAdmin = user?.isAdmin || false;
+  const isAdmin = authUser?.uid;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   
-    const [formData, setFormData] = useState({
-    title: event?.title || '',
-    date: event?.date || getNextFriday(),
-    time: event?.time || '19:00',
-    location: event?.location || 'שטרוק 21 תל אביב',
-    description: event?.description || '',
-    // השינוי כאן: החלפנו את user.name ב-authUser.displayName
-    hostName: event?.hostName || authUser?.displayName || '', 
-    maxParticipants: event?.maxParticipants || undefined,
-    isActive: event?.isActive ?? true
+  const [formData, setFormData] = useState({
+    title: event?.details.title || '',
+    date: event?.details.date || getNextFriday(),
+    time: event?.details.time || '19:00',
+    location: event?.details.location || 'שטרוק 21 תל אביב',
+    description: event?.details.description || '',
+    hostName: event?.organizerName || authUser?.displayName || '', 
+    isActive: event?.details.isActive ?? true,
+    endDate: event?.details.endDate || '',
+    endTime: event?.details.endTime || '',
   });
 
   const validateForm = (): boolean => {
@@ -54,7 +56,7 @@ export function EventForm({ event, onClose }: EventFormProps) {
       const selectedDate = new Date(formData.date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (selectedDate < today) {
+      if (selectedDate < today && !event) { // Allow editing past events, but not creating them
         newErrors.date = 'לא ניתן ליצור אירוע בתאריך שעבר';
       }
     }
@@ -74,6 +76,13 @@ export function EventForm({ event, onClose }: EventFormProps) {
     } else if (formData.hostName.trim().length < 2) {
       newErrors.hostName = 'שם המארח חייב להכיל לפחות 2 תווים';
     }
+    
+    if (formData.endDate && new Date(formData.endDate) < new Date(formData.date)) {
+      newErrors.endDate = 'תאריך הסיום חייב להיות אחרי תאריך ההתחלה';
+    } else if (formData.endDate && formData.endTime && formData.endDate === formData.date && formData.endTime < formData.time) {
+      newErrors.endDate = 'שעת הסיום חייבת להיות אחרי שעת ההתחלה';
+    }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -82,13 +91,11 @@ export function EventForm({ event, onClose }: EventFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // בדיקת הרשאות מנהל
     if (!isAdmin || !authUser) {
       toast.error('רק מנהלים יכולים ליצור ולערוך אירועים.');
       return;
     }
 
-    // אימות טופס
     if (!validateForm()) {
       toast.error('יש לתקן את השגיאות בטופס');
       return;
@@ -97,36 +104,26 @@ export function EventForm({ event, onClose }: EventFormProps) {
     setIsSubmitting(true);
 
     try {
-      const eventData = {
-        ...formData,
+      const eventDetails: EventDetails = {
         title: formData.title.trim(),
+        date: formData.date,
+        time: formData.time,
         location: formData.location.trim(),
-        hostName: formData.hostName.trim(),
         description: formData.description.trim() || undefined,
-        hostId: authUser.uid,
-        updatedAt: Date.now()
+        isActive: formData.isActive,
+        endDate: formData.endDate || undefined,
+        endTime: formData.endTime || undefined,
       };
 
       if (event) {
         // Update existing event
-        const success = await FirebaseService.updateEvent(event.id, eventData);
-        if (success) {
-          updateEvent(event.id, eventData);
-          toast.success('האירוע עודכן בהצלחה!');
-          onClose();
-        } else {
-          throw new Error('Failed to update event');
-        }
+        await FirebaseService.updateEventDetails(event.id, eventDetails);
+        toast.success('האירוע עודכן בהצלחה!');
+        onClose();
       } else {
         // Create new event
-        const newEvent = {
-          ...eventData,
-          createdAt: Date.now()
-        };
-        
-        const eventId = await FirebaseService.createEvent(newEvent);
+        const eventId = await FirebaseService.createEvent(authUser.uid, eventDetails);
         if (eventId) {
-          addEvent({ ...newEvent, id: eventId });
           toast.success('האירוע נוצר בהצלחה!');
           onClose();
         } else {
@@ -143,13 +140,11 @@ export function EventForm({ event, onClose }: EventFormProps) {
 
   const handleInputChange = (field: keyof typeof formData, value: string | number | boolean | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
-  // אם המשתמש לא מנהל, הצג הודעה
   if (!isAdmin) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -220,7 +215,7 @@ export function EventForm({ event, onClose }: EventFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                תאריך *
+                תאריך התחלה *
               </label>
               <div className="relative">
                 <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -245,7 +240,7 @@ export function EventForm({ event, onClose }: EventFormProps) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                שעה *
+                שעת התחלה *
               </label>
               <div className="relative">
                 <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -266,6 +261,42 @@ export function EventForm({ event, onClose }: EventFormProps) {
                   {errors.time}
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* End Date and Time */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">תאריך סיום (אופציונלי)</label>
+              <div className="relative">
+                <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => handleInputChange('endDate', e.target.value)}
+                  className={`w-full pr-10 pl-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.endDate ? 'border-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting}
+                />
+              </div>
+              {errors.endDate && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 ml-1" />
+                  {errors.endDate}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">שעת סיום (אופציונלי)</label>
+              <div className="relative">
+                <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) => handleInputChange('endTime', e.target.value)}
+                  className={`w-full pr-10 pl-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.endDate ? 'border-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting || !formData.endDate}
+                />
+              </div>
             </div>
           </div>
 
@@ -322,23 +353,7 @@ export function EventForm({ event, onClose }: EventFormProps) {
               </p>
             )}
           </div>
-
-          {/* Max Participants */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              מספר משתתפים מקסימלי (אופציונלי)
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={formData.maxParticipants || ''}
-              onChange={(e) => handleInputChange('maxParticipants', e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="ללא הגבלה"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={isSubmitting}
-            />
-          </div>
-
+          
           {/* Description */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">

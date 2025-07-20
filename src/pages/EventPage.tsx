@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useStore, selectMenuItems, selectAssignments, selectParticipants } from '../store/useStore';
+// --- שינוי: תיקון נתיב הייבוא ---
 import { FirebaseService } from '../services/firebaseService';
 import { auth } from '../lib/firebase';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -335,10 +336,21 @@ const EventPage: React.FC = () => {
     };
     
     const handleCancelClick = async (assignment: AssignmentType) => {
-        if (!eventId) return;
-        if (window.confirm("האם לבטל את השיבוץ?")) {
-            await FirebaseService.cancelAssignment(eventId, assignment.id, assignment.menuItemId);
-            toast.success("השיבוץ בוטל");
+        if (!eventId || !localUser) return;
+
+        const menuItem = menuItems.find(item => item.id === assignment.menuItemId);
+        const isCreator = menuItem?.creatorId === localUser.uid;
+
+        if (isCreator) {
+            if (window.confirm("ביטול השיבוץ ימחק גם את הפריט שיצרת. האם להמשיך?")) {
+                await FirebaseService.deleteMenuItem(eventId, assignment.menuItemId);
+                toast.success("הפריט והשיבוץ נמחקו");
+            }
+        } else {
+            if (window.confirm("האם לבטל את השיבוץ?")) {
+                await FirebaseService.cancelAssignment(eventId, assignment.id, assignment.menuItemId);
+                toast.success("השיבוץ בוטל");
+            }
         }
     };
     
@@ -363,7 +375,19 @@ const EventPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-background">
-            <header className="bg-white shadow-sm p-4 text-center sticky top-0 z-40"><Link to="/" className="text-accent font-bold text-xl">שישי שיתופי</Link></header>
+            <header className="bg-white shadow-sm p-4 sticky top-0 z-40">
+                <div className="max-w-4xl mx-auto flex justify-between items-center">
+                    <Link to="/" className="text-accent font-bold text-xl">שישי שיתופי</Link>
+                    {localUser?.isAnonymous && (
+                        <div className="text-xs text-neutral-500 text-right">
+                            <span>פותח ע"י </span>
+                            <a href="https://www.linkedin.com/in/chagai-yechiel/" target="_blank" rel="noopener noreferrer" className="font-semibold text-accent hover:underline">
+                                חגי יחיאל
+                            </a>
+                        </div>
+                    )}
+                </div>
+            </header>
             <main className="max-w-4xl mx-auto py-8 px-4">
                 <div className="bg-white rounded-xl shadow-md p-6 mb-8">
     <h1 className="text-xl sm:text-2xl font-bold text-neutral-800 mb-4">{currentEvent.details.title}</h1>
@@ -413,6 +437,23 @@ const EventPage: React.FC = () => {
                         )}
                     </div>
                 </div>
+
+                {localUser?.isAnonymous && (
+                    <div className="mt-16 text-center bg-white p-8 rounded-xl shadow-md border">
+                        <h3 className="text-2xl font-bold text-neutral-800 mb-2">
+                            רוצה לארגן אירוע כזה?
+                        </h3>
+                        <p className="text-neutral-600 mb-6">
+                            הצטרף כמארגן וצור אירועים קהילתיים משלך בקלות ובחינם.
+                        </p>
+                        <Link 
+                            to="/login" 
+                            className="inline-block bg-accent text-white px-8 py-3 rounded-lg shadow-lg hover:bg-accent/90 transition-transform hover:scale-105 font-semibold text-lg"
+                        >
+                            צור אירוע משלך
+                        </Link>
+                    </div>
+                )}
             </main>
 
             {showNameModal && (<NameModal isLoading={isJoining} onSave={handleJoinEvent} />)}

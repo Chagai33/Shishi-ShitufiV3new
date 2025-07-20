@@ -22,25 +22,29 @@ function App() {
     return <LoadingSpinner />;
   }
 
+  // --- שינוי לוגיקת הניווט ---
+  // משתמש רשום הוא משתמש שיש לו כתובת אימייל
+  const isRegisteredUser = user && user.email;
+
   return (
     <>
       <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
       <Routes>
         <Route 
           path="/login" 
-          element={user ? <Navigate to="/dashboard" /> : <LoginPage />} 
+          element={isRegisteredUser ? <Navigate to="/dashboard" /> : <LoginPage />} 
         />
         
         <Route 
           path="/dashboard" 
-          element={user ? <DashboardPage /> : <Navigate to="/login" />} 
+          element={isRegisteredUser ? <DashboardPage /> : <Navigate to="/login" />} 
         />
         
         <Route path="/event/:eventId" element={<EventPage />} />
         
         <Route 
           path="/" 
-          element={<Navigate to={user ? "/dashboard" : "/login"} />} 
+          element={<Navigate to={isRegisteredUser ? "/dashboard" : "/login"} />} 
         />
         
         <Route path="*" element={<NotFoundPage />} />
