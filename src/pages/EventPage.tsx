@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useStore, selectMenuItems, selectAssignments, selectParticipants } from '../store/useStore';
-// --- שינוי: תיקון נתיב הייבוא ---
 import { FirebaseService } from '../services/firebaseService';
 import { auth } from '../lib/firebase';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -388,23 +387,23 @@ const EventPage: React.FC = () => {
                     )}
                 </div>
             </header>
-            <main className="max-w-4xl mx-auto py-8 px-4">
-                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-    <h1 className="text-xl sm:text-2xl font-bold text-neutral-800 mb-4">{currentEvent.details.title}</h1>
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-500 mb-4">
-        <p className="flex items-center"><Calendar size={14} className="ml-1.5" /> {formatDate(currentEvent.details.date)}</p>
-        <p className="flex items-center"><Clock size={14} className="ml-1.5" /> {formatTime(currentEvent.details.time)}</p>
-        <p className="flex items-center"><MapPin size={14} className="ml-1.5" /> {currentEvent.details.location}</p>
-        <p className="flex items-center"><UserIcon size={14} className="ml-1" /> מארגן: {currentEvent.organizerName}</p>
-    </div>
-</div>
-                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-                    <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                        <div className="flex-grow relative">
+            <main className="max-w-4xl mx-auto py-4 sm:py-6 px-4">
+                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-800 mb-4">{currentEvent.details.title}</h1>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-500 mb-4">
+                        <p className="flex items-center"><Calendar size={14} className="ml-1.5" /> {formatDate(currentEvent.details.date)}</p>
+                        <p className="flex items-center"><Clock size={14} className="ml-1.5" /> {formatTime(currentEvent.details.time)}</p>
+                        <p className="flex items-center"><MapPin size={14} className="ml-1.5" /> {currentEvent.details.location}</p>
+                        <p className="flex items-center"><UserIcon size={14} className="ml-1" /> מארגן: {currentEvent.organizerName}</p>
+                    </div>
+                </div>
+                <div className="bg-white rounded-xl shadow-md p-4 mb-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+                        <div className="w-full sm:flex-grow relative">
                             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
                             <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} placeholder="חפש פריט..." className="w-full pr-10 pl-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" />
                         </div>
-                        <button onClick={handleMyAssignmentsClick} className={`px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>השיבוצים שלי</button>
+                        <button onClick={handleMyAssignmentsClick} className={`w-full sm:w-auto px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors whitespace-nowrap ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>השיבוצים שלי</button>
                     </div>
                 </div>
 
