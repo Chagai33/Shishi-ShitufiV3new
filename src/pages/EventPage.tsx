@@ -31,9 +31,11 @@ const CategorySelector: React.FC<{
     main: { name: 'מנות עיקריות', icon: '/Icons/1.gif', color: '#ff8a00', glowClass: 'glow-main' },
     dessert: { name: 'קינוחים', icon: '/Icons/3.gif', color: '#9b59b6', glowClass: 'glow-dessert' },
     drink: { name: 'משקאות', icon: '/Icons/4.gif', color: '#2ecc71', glowClass: 'glow-drink' },
+    equipment: { name: 'ציוד והגשה', icon: '/Icons/6.gif', color: '#34495e', glowClass: 'glow-equipment' }, 
     other: { name: 'אחר', icon: '/Icons/5.gif', color: '#95a5a6', glowClass: 'glow-other' },
   };
-  const categoriesOrder = ['starter', 'main', 'dessert', 'drink', 'other'];
+  const categoriesOrder = ['starter', 'main', 'dessert', 'drink', 'equipment', 'other'];
+
 
   const getCategoryProgress = (category: string) => {
     const itemsInCategory = menuItems.filter(item => item.category === category);
@@ -400,9 +402,24 @@ const EventPage: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-md p-4 mb-6">
                     <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
                         <div className="w-full sm:flex-grow relative">
-                            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                            <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} placeholder="חפש פריט..." className="w-full pr-10 pl-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" />
-                        </div>
+    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400 pointer-events-none" />
+    <input 
+        type="text" 
+        value={searchTerm} 
+        onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} 
+        placeholder="חפש פריט..." 
+        className="w-full pr-10 pl-10 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" 
+    />
+    {searchTerm && (
+        <button
+            onClick={() => setSearchTerm('')}
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+            aria-label="נקה חיפוש"
+        >
+            <X className="h-5 w-5" />
+        </button>
+    )}
+</div>
                         <button onClick={handleMyAssignmentsClick} className={`w-full sm:w-auto px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors whitespace-nowrap ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>השיבוצים שלי</button>
                     </div>
                 </div>
