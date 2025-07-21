@@ -46,7 +46,9 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
   return (
     <div>
       {/* רשת הקטגוריות */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-רוצה לארגן אירוע משלך?
+
+1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {categoriesOrder.map(categoryKey => {
           const progress = getCategoryProgress(categoryKey);
           
