@@ -38,7 +38,8 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
     { value: 'starter', label: 'מנה ראשונה' },
     { value: 'main', label: 'מנה עיקרית' },
     { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'משקה' },
+    { value: 'drink', label: 'שתייה' },  
+    { value: 'equipment', label: 'ציוד כללי' },
     { value: 'other', label: 'אחר' }
   ];
 

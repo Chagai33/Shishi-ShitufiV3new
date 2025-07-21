@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { X, Upload, FileText, Table, AlertCircle, CheckCircle, Trash2, List } from 'lucide-react';
-import { useStore } from '../../store/useStore';
 import { FirebaseService } from '../../services/firebaseService';
 import { ShishiEvent, MenuItem, MenuCategory } from '../../types';
 import { PresetListsManager } from './PresetListsManager';
@@ -10,6 +9,8 @@ import { useAuth } from '../../hooks/useAuth';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import toast from 'react-hot-toast';
+import { useStore } from '../../store/useStore'; 
+
 
 interface ImportItemsModalProps {
   event: ShishiEvent;
@@ -38,7 +39,7 @@ export function ImportItemsModal({ event, onClose }: ImportItemsModalProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showPresetManager, setShowPresetManager] = useState(false);
-
+  const [showError, setShowError] = useState(false);
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [itemsToImport, setItemsToImport] = useState<{ newItems: ImportItem[], duplicateItems: ImportItem[] }>({ newItems: [], duplicateItems: [] });
 
@@ -46,7 +47,8 @@ export function ImportItemsModal({ event, onClose }: ImportItemsModalProps) {
     { value: 'starter', label: 'מנה ראשונה' },
     { value: 'main', label: 'מנה עיקרית' },
     { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'משקה' },
+    { value: 'drink', label: 'שתייה' },
+    { value: 'equipment', label: 'ציוד כללי' },
     { value: 'other', label: 'אחר' }
   ];
 

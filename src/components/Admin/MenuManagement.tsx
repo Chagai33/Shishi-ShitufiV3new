@@ -39,7 +39,7 @@ export function MenuManagement({ event, onBack, setShowImportModal, setSelectedE
     starter: 'מנות ראשונות',
     main: 'מנות עיקריות',
     dessert: 'קינוחים',
-    drink: 'משקאות',
+    drink: 'שתייה',
     other: 'אחר'
   };
 

@@ -63,6 +63,7 @@ export function EventDetails({ event, onBack }: EventDetailsProps) {
       main: eventMenuItems.filter(item => item.category === 'main'),
       dessert: eventMenuItems.filter(item => item.category === 'dessert'),
       drink: eventMenuItems.filter(item => item.category === 'drink'),
+      equipment: eventMenuItems.filter(item => item.category === 'equipment'),
       other: eventMenuItems.filter(item => item.category === 'other')
     };
     return categories;
@@ -72,7 +73,8 @@ export function EventDetails({ event, onBack }: EventDetailsProps) {
     starter: 'מנות ראשונות',
     main: 'מנות עיקריות', 
     dessert: 'קינוחים',
-    drink: 'משקאות',
+    drink: 'שתייה',
+    equipment: 'ציוד כללי',
     other: 'אחר'
   };
 

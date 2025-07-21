@@ -55,7 +55,7 @@ export function BulkItemsManager({ onBack }: BulkItemsManagerProps) {
     { value: 'starter', label: 'מנה ראשונה' },
     { value: 'main', label: 'מנה עיקרית' },
     { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'משקה' },
+    { value: 'drink', label: 'שתייה' },
     { value: 'other', label: 'אחר' }
   ];
   
@@ -218,7 +218,7 @@ export function BulkItemsManager({ onBack }: BulkItemsManagerProps) {
                 </>
               ) : (
                 <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                  {bulkAction === 'category' && (<select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value as MenuCategory)} className="px-3 py-1 border border-gray-300 rounded text-sm"><option value="starter">מנה ראשונה</option><option value="main">מנה עיקרית</option><option value="dessert">קינוח</option><option value="drink">משקה</option><option value="other">אחר</option></select>)}
+                  {bulkAction === 'category' && (<select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value as MenuCategory)} className="px-3 py-1 border border-gray-300 rounded text-sm"><option value="starter">מנה ראשונה</option><option value="main">מנה עיקרית</option><option value="dessert">קינוח</option><option value="drink">שתייה</option><option value="other">אחר</option></select>)}
                   {bulkAction === 'required' && (<select value={bulkRequired.toString()} onChange={(e) => setBulkRequired(e.target.value === 'true')} className="px-3 py-1 border border-gray-300 rounded text-sm"><option value="true">חובה</option><option value="false">לא חובה</option></select>)}
                   <button onClick={executeBulkAction} disabled={isLoading} className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-3 py-1 rounded-md text-sm">{isLoading ? 'מבצע...' : 'בצע'}</button>
                   <button onClick={() => setBulkAction(null)} className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-sm">ביטול</button>

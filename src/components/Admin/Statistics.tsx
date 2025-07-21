@@ -49,7 +49,7 @@ export function Statistics() {
     starter: 'מנות ראשונות',
     main: 'מנות עיקריות',
     dessert: 'קינוחים',
-    drink: 'משקאות',
+    drink: 'שתייה',
     other: 'אחר'
   };
 

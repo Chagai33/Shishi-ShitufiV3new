@@ -3,11 +3,16 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import sonarjs from 'eslint-plugin-sonarjs'; // <-- 1. הוסף ייבוא
+import unicorn from 'eslint-plugin-unicorn'; // <-- 2. הוסף ייבוא
 
 export default tseslint.config(
   { ignores: ['dist'] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  sonarjs.configs.recommended, // <-- 3. הפעל את חוקי SonarJS
+  unicorn.configs.recommended, // <-- 4. הפעל את חוקי Unicorn
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
@@ -23,6 +28,9 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // תוכל לבטל חוקים ספציפיים כאן אם הם מפריעים לך
+      'unicorn/prevent-abbreviations': 'off',
+      'unicorn/filename-case': 'off',
     },
   }
 );

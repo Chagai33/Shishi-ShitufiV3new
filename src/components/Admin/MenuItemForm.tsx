@@ -24,7 +24,7 @@ export function MenuItemForm({ event, item, onClose }: MenuItemFormProps) {
     { value: 'starter', label: 'מנה ראשונה' },
     { value: 'main', label: 'מנה עיקרית' },
     { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'משקה' },
+    { value: 'drink', label: 'שתייה' },
     { value: 'other', label: 'אחר' }
   ];
 

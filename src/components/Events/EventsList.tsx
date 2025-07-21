@@ -14,7 +14,8 @@ const categoryNames: { [key: string]: string } = {
   starter: 'מנות ראשונות',
   main: 'מנות עיקריות',
   dessert: 'קינוחים',
-  drink: 'משקאות',
+  drink: 'שתייה',
+  equipment: 'ציוד כללי',
   other: 'אחר',
 };
 

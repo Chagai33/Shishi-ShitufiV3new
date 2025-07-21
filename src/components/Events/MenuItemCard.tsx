@@ -28,7 +28,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     starter: 'מנה ראשונה',
     main: 'מנה עיקרית',
     dessert: 'קינוחים',
-    drink: 'משקאות',
+    drink: 'שתייה',
     other: 'אחר',
   };
 

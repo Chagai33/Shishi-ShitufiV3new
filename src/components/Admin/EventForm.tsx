@@ -23,7 +23,6 @@ interface FormErrors {
 }
 
 export function EventForm({ event, onClose }: EventFormProps) {
-  const { addEvent, updateEvent } = useStore();
   const { user: authUser } = useAuth();
   const isAdmin = authUser?.uid;
   const [isSubmitting, setIsSubmitting] = useState(false);

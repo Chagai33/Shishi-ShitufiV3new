@@ -7,7 +7,8 @@ const categoryDetails: { [key: string]: { name: string; icon: string; color: str
   starter: { name: 'מנות ראשונות', icon: '/Icons/2.gif', color: '#3498db', glowClass: 'glow-starter' },
   main: { name: 'מנות עיקריות', icon: '/Icons/1.gif', color: '#009688', glowClass: 'glow-main' },
   dessert: { name: 'קינוחים', icon: '/Icons/3.gif', color: '#9b59b6', glowClass: 'glow-dessert' },
-  drink: { name: 'משקאות', icon: '/Icons/4.gif', color: '#2ecc71', glowClass: 'glow-drink' },
+  drink: { name: 'שתייה', icon: '/Icons/4.gif', color: '#2ecc71', glowClass: 'glow-drink' },
+  equipment: { name: 'ציוד כללי', icon: '/Icons/6.gif', color: '#2ecc71', glowClass: 'glow-drink' },
   other: { name: 'אחר', icon: '/Icons/5.gif', color: '#95a5a6', glowClass: 'glow-other' },
 };
 
@@ -40,7 +41,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
     };
   };
 
-  const categoriesOrder = ['starter', 'main', 'dessert', 'drink', 'other'];
+  const categoriesOrder = ['starter', 'main', 'dessert', 'drink', 'equipment', 'other'];
 
   return (
     <div>

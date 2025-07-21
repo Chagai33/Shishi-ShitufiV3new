@@ -69,7 +69,7 @@ export function PresetListsManager({ onClose, onSelectList }: PresetListsManager
     { value: 'starter', label: 'מנה ראשונה' },
     { value: 'main', label: 'מנה עיקרית' },
     { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'משקה' },
+    { value: 'drink', label: 'שתייה' },
     { value: 'other', label: 'אחר' }
   ];
 
