@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore';
 import { FirebaseService } from '../services/firebaseService';
 import { ShishiEvent, EventDetails } from '../types';
 import { toast } from 'react-hot-toast';
-import { Plus, LogOut, Calendar, MapPin, Clock, Share2, Eye, Trash2, ChefHat, Home, Settings, Users } from 'lucide-react';
+import { Plus, LogOut, Calendar, MapPin, Clock, Share2, Eye, Trash2, ChefHat, Home, Settings, Users, ChevronDown } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { AdminHeader } from '../components/Admin/AdminHeader';
@@ -14,80 +14,111 @@ import { AdminEventsPanel } from '../components/Admin/AdminEventsPanel';
 import { ImportItemsModal } from '../components/Admin/ImportItemsModal';
 
 // --- רכיב כרטיס אירוע ---
-const EventCard: React.FC<{ event: ShishiEvent, onDelete: (eventId: string, title: string) => void }> = ({ event, onDelete }) => {
-  const navigate = useNavigate();
-  const eventUrl = `${window.location.origin}/event/${event.id}`;
-  const isPast = new Date(event.details.date) < new Date();
+const EventCard: React.FC<{
+    event: ShishiEvent,
+    onDelete: (eventId: string, title: string) => void,
+    onEdit: (event: ShishiEvent) => void,
+    onImport: (event: ShishiEvent) => void,
+    onManageParticipants: (event: ShishiEvent) => void,
+}> = ({ event, onDelete, onEdit, onImport, onManageParticipants }) => {
+    const navigate = useNavigate();
+    const [showAdminActions, setShowAdminActions] = useState(false);
+    const eventUrl = `${window.location.origin}/event/${event.id}`;
+    const isPast = new Date(event.details.date) < new Date();
 
-  const copyToClipboard = (e: React.MouseEvent) => {
-    e.stopPropagation(); // מונע ניווט בעת לחיצה על הכפתור
-    navigator.clipboard.writeText(eventUrl);
-    toast.success('הקישור הועתק!');
-  };
+    const copyToClipboard = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(eventUrl);
+        toast.success('הקישור הועתק!');
+    };
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // מונע ניווט בעת לחיצה על הכפתור
-    onDelete(event.id, event.details.title);
-  };
-  
-  const handleViewClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // מונע ניווט בעת לחיצה על הכפתור
-    navigate(`/event/${event.id}`);
-  };
+    const handleActionClick = (e: React.MouseEvent, action: () => void) => {
+        e.stopPropagation();
+        action();
+    };
 
-  const menuItemsCount = event.menuItems ? Object.keys(event.menuItems).length : 0;
+    // Correct, client-side calculation directly from the event object
+    const menuItemsCount = event.menuItems ? Object.keys(event.menuItems).length : 0;
+    const assignmentsCount = event.assignments ? Object.keys(event.assignments).length : 0;
+    const participantsWithAssignmentsCount = event.assignments
+        ? new Set(Object.values(event.assignments).map(a => a.userId)).size
+        : 0;
+    const assignmentPercentage = menuItemsCount > 0 ? (assignmentsCount / menuItemsCount) * 100 : 0;
 
-  return (
-    // --- שינוי 1: הוספת onClick ו-cursor-pointer לכל הכרטיס ---
-    <div 
-      onClick={() => navigate(`/event/${event.id}`)}
-      className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex flex-col cursor-pointer border-r-4 ${
-        isPast 
-          ? 'border-neutral-400 opacity-75' 
-          : event.details.isActive 
-            ? 'border-accent hover:scale-[1.02]' 
-            : 'border-neutral-300'
-      }`}>
-      <div className="p-6 flex-grow">
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="text-lg font-bold text-neutral-900">{event.details.title}</h3>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            isPast
-              ? 'bg-neutral-100 text-neutral-600'
-              : event.details.isActive ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
-          }`}>
-            {isPast ? 'הסתיים' : event.details.isActive ? 'פעיל' : 'לא פעיל'}
-          </span>
+    return (
+        <div
+            onClick={() => navigate(`/event/${event.id}`)}
+            className={`bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 flex flex-col cursor-pointer border-r-4 ${
+                isPast
+                    ? 'border-neutral-400 opacity-75'
+                    : event.details.isActive
+                        ? 'border-accent hover:scale-[1.02]'
+                        : 'border-neutral-300'
+            }`}>
+            <div className="p-6 flex-grow">
+                <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-lg font-bold text-neutral-900">{event.details.title}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        isPast
+                            ? 'bg-neutral-100 text-neutral-600'
+                            : event.details.isActive ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                    }`}>
+                        {isPast ? 'הסתיים' : event.details.isActive ? 'פעיל' : 'לא פעיל'}
+                    </span>
+                </div>
+                <div className="space-y-2 text-sm text-neutral-600 mb-4">
+                    <p className="flex items-center"><Calendar size={14} className="ml-2 text-accent" /> {new Date(event.details.date).toLocaleDateString('he-IL')}</p>
+                    <p className="flex items-center"><Clock size={14} className="ml-2 text-accent" /> {event.details.time}</p>
+                    <p className="flex items-center"><MapPin size={14} className="ml-2 text-accent" /> {event.details.location}</p>
+                </div>
+
+                {menuItemsCount > 0 && (
+                    <div className="mt-4 pt-4 border-t border-neutral-200">
+                        <p className="text-xs text-neutral-500 mb-2">
+                            <span className="font-medium text-neutral-700">{assignmentsCount}</span> מתוך <span className="font-medium text-neutral-700">{menuItemsCount}</span> פריטים שובצו
+                            <span className="mx-2">|</span>
+                            <span className="font-medium text-neutral-700">{participantsWithAssignmentsCount}</span> משתתפים
+                        </p>
+                        <div className="w-full bg-neutral-200 rounded-full h-1.5">
+                            <div
+                                className="bg-accent h-1.5 rounded-full transition-all duration-500"
+                                style={{ width: `${assignmentPercentage}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            <div className="bg-neutral-50 p-4 border-t rounded-b-xl">
+                <div className="flex justify-between items-center">
+                    <button onClick={copyToClipboard} className="flex items-center text-sm text-info hover:text-info/80 font-semibold">
+                        <Share2 size={16} className="ml-1" /> שתף
+                    </button>
+                    <button
+                        onClick={(e) => handleActionClick(e, () => setShowAdminActions(!showAdminActions))}
+                        className="flex items-center text-sm font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-md hover:bg-blue-200"
+                    >
+                        ניהול
+                        <ChevronDown size={16} className={`mr-1 transition-transform ${showAdminActions ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
+                {showAdminActions && (
+                    <div className="mt-4 pt-4 border-t space-y-2">
+                        <button onClick={(e) => handleActionClick(e, () => onImport(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">ייבא פריטים</button>
+                        <button onClick={(e) => handleActionClick(e, () => onManageParticipants(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">נהל משתתפים</button>
+                        <button onClick={(e) => handleActionClick(e, () => onEdit(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">ערוך פרטי אירוע</button>
+                        <button onClick={(e) => handleActionClick(e, () => onDelete(event.id, event.details.title))} className="w-full text-left text-sm p-2 rounded-md hover:bg-red-100 text-error">מחק אירוע</button>
+                    </div>
+                )}
+            </div>
         </div>
-        <div className="space-y-2 text-sm text-neutral-600">
-          <p className="flex items-center"><Calendar size={14} className="ml-2 text-accent" /> {new Date(event.details.date).toLocaleDateString('he-IL')}</p>
-          <p className="flex items-center"><Clock size={14} className="ml-2 text-accent" /> {event.details.time}</p>
-          <p className="flex items-center"><MapPin size={14} className="ml-2 text-accent" /> {event.details.location}</p>
-          <p className="flex items-center"><ChefHat size={14} className="ml-2 text-accent" /> {menuItemsCount} פריטים בתפריט</p>
-        </div>
-      </div>
-      <div className="bg-neutral-50 p-4 border-t flex justify-between items-center rounded-b-xl">
-        {/* --- שינוי 2: הוספת e.stopPropagation() לכפתורים --- */}
-        <button onClick={copyToClipboard} className="flex items-center text-sm text-info hover:text-info/80 font-semibold">
-          <Share2 size={16} className="ml-1" /> שתף
-        </button>
-        <div className="flex items-center space-x-2 rtl:space-x-reverse">
-          <button onClick={handleViewClick} className="p-2 text-neutral-500 hover:bg-neutral-200 rounded-full" title="צפה באירוע">
-            <Eye size={18} />
-          </button>
-          <button onClick={handleDeleteClick} className="p-2 text-neutral-500 hover:bg-error/10 hover:text-error rounded-full" title="מחק אירוע">
-            <Trash2 size={18} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
+
 
 // --- רכיב טופס יצירת אירוע ---
 const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void, editingEvent?: ShishiEvent }> = ({ onClose, onEventCreated, editingEvent }) => {
     const user = useStore(state => state.user);
-    const [details, setDetails] = useState<EventDetails>({
+    const [details, setDetails] = useState<Omit<EventDetails, 'stats'>>({
         title: editingEvent?.details.title || '',
         date: editingEvent?.details.date || '',
         time: editingEvent?.details.time || '19:00',
@@ -99,37 +130,28 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('🎯 EventFormModal.handleSubmit - Starting form submission');
-        console.log('👤 Current user:', user);
-        console.log('📋 Form details:', details);
-        
         if (!user) {
-            console.error('❌ No user found');
             toast.error("שגיאה: משתמש לא מחובר.");
             return;
         }
         if (!details.title || !details.date || !details.time || !details.location) {
-            console.error('❌ Missing required fields');
             toast.error("יש למלא את כל שדות החובה.");
             return;
         }
-        
+
         setIsLoading(true);
         try {
             if (editingEvent) {
-                console.log('📝 Updating existing event...');
                 await FirebaseService.updateEventDetails(editingEvent.id, details);
                 toast.success("האירוע עודכן בהצלחה!");
             } else {
-                console.log('📞 Calling FirebaseService.createEvent...');
-                const eventId = await FirebaseService.createEvent(user.id, details);
-                console.log('✅ Event created successfully with ID:', eventId);
+                await FirebaseService.createEvent(user.id, details);
                 toast.success("האירוע נוצר בהצלחה!");
             }
             onEventCreated();
             onClose();
         } catch (error) {
-            console.error("❌ Error saving event:", error);
+            console.error("Error saving event:", error);
             toast.error(editingEvent ? "שגיאה בעדכון האירוע." : "שגיאה ביצירת האירוע.");
         } finally {
             setIsLoading(false);
@@ -170,225 +192,203 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
 
 // --- רכיב הדאשבורד הראשי ---
 const DashboardPage: React.FC = () => {
-  const { user } = useStore();
-  
-  // לוג מיידי כשהקומפוננטה נטענת
-  console.log('🎯 DashboardPage LOADED - User:', user);
-  
-  const [currentView, setCurrentView] = useState<'regular' | 'admin'>('regular');
-  const [adminView, setAdminView] = useState<'events' | 'users' | 'settings'>('events');
-  const [events, setEvents] = useState<ShishiEvent[]>([]);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<ShishiEvent | null>(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [selectedEventForImport, setSelectedEventForImport] = useState<ShishiEvent | null>(null);
+    const { user } = useStore();
 
-  console.log('🎯 DashboardPage RENDER - User exists:', !!user, 'User ID:', user?.id);
+    const [currentView, setCurrentView] = useState<'regular' | 'admin'>('regular');
+    const [adminView, setAdminView] = useState<'events' | 'users' | 'settings'>('events');
+    const [events, setEvents] = useState<ShishiEvent[]>([]);
+    const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<ShishiEvent | null>(null);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [selectedEventForImport, setSelectedEventForImport] = useState<ShishiEvent | null>(null);
 
-  const logout = async () => {
-    console.log('🚪 LOGOUT CLICKED');
-    try {
-      await signOut(auth);
-      toast.success('התנתקת בהצלחה');
-    } catch (error) {
-      console.error('❌ LOGOUT ERROR:', error);
-      toast.error('שגיאה בעת ההתנתקות');
-    }
-  };
-
-  const fetchEvents = useCallback(async () => {
-    if (!user) {
-      return;
-    }
-
-    setIsLoadingEvents(true);
-    
-    try {
-      const fetchedEvents = await FirebaseService.getEventsByOrganizer(user.id);
-      setEvents(fetchedEvents);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-      toast.error("שגיאה בטעינת האירועים.");
-    } finally {
-      setIsLoadingEvents(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    console.log('🎬 useEffect TRIGGERED - calling fetchEvents');
-    fetchEvents();
-  }, [fetchEvents]);
-
-  const handleDeleteEvent = async (eventId: string, title: string) => {
-    console.log('🗑️ DELETE EVENT CLICKED:', { eventId, title });
-    if (!user) {
-      console.error('❌ NO USER FOR DELETE');
-      return;
-    }
-    
-    if (window.confirm(`האם אתה בטוח שברצונך למחוק את האירוע "${title}"? הפעולה אינה הפיכה.`)) {
+    const logout = async () => {
         try {
-            console.log('📞 CALLING deleteEvent...');
-            await FirebaseService.deleteEvent(eventId);
-            console.log('✅ DELETE SUCCESS');
-            toast.success("האירוע נמחק בהצלחה");
-            fetchEvents(); // רענון הרשימה המקומית
+            await signOut(auth);
+            toast.success('התנתקת בהצלחה');
         } catch (error) {
-            console.error('❌ DELETE ERROR:', error);
-            toast.error("שגיאה במחיקת האירוע");
+            toast.error('שגיאה בעת ההתנתקות');
         }
+    };
+
+    const fetchEvents = useCallback(async () => {
+        if (!user) return;
+        setIsLoadingEvents(true);
+        try {
+            const fetchedEvents = await FirebaseService.getEventsByOrganizer(user.id);
+            setEvents(fetchedEvents);
+        } catch (error) {
+            console.error("Error fetching events:", error);
+            toast.error("שגיאה בטעינת האירועים.");
+        } finally {
+            setIsLoadingEvents(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchEvents();
+    }, [fetchEvents]);
+
+    const handleDeleteEvent = async (eventId: string, title: string) => {
+        if (!user) return;
+        if (window.confirm(`האם אתה בטוח שברצונך למחוק את האירוע "${title}"? הפעולה אינה הפיכה.`)) {
+            try {
+                await FirebaseService.deleteEvent(eventId);
+                toast.success("האירוע נמחק בהצלחה");
+                fetchEvents();
+            } catch (error) {
+                toast.error("שגיאה במחיקת האירוע");
+            }
+        }
+    };
+
+    const handleImportItems = (event: ShishiEvent) => {
+        setSelectedEventForImport(event);
+        setShowImportModal(true);
+    };
+
+    const handleManageParticipants = (event: ShishiEvent) => {
+        toast(`ניהול משתתפים עבור ${event.details.title} - בקרוב!`);
+    };
+
+    const handleEditEvent = (event: ShishiEvent) => {
+        setEditingEvent(event);
+        setShowCreateModal(true);
+    };
+
+    if (!user) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-50">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500"></div>
+            </div>
+        );
     }
-  };
 
-  const handleImportItems = (event: ShishiEvent) => {
-    setSelectedEventForImport(event);
-    setShowImportModal(true);
-  };
-
-  const handleManageParticipants = (event: ShishiEvent) => {
-    toast(`ניהול משתתפים עבור ${event.details.title} - בקרוב!`);
-  };
-
-  const handleEditEvent = (event: ShishiEvent) => {
-    setEditingEvent(event);
-    setShowCreateModal(true);
-  };
-
-  if (!user) {
-    console.log('⏳ NO USER - SHOWING SPINNER');
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {currentView === 'admin' ? (
-        // Admin Panel View
         <div className="min-h-screen bg-gray-50">
-          <AdminHeader
-            userName={user.name}
-            onLogout={logout}
-            currentView={adminView}
-            onViewChange={setAdminView}
-          />
-          
-          <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            {adminView === 'events' && (
-              <AdminEventsPanel
-                events={events}
-                onCreateEvent={() => {
-                  setEditingEvent(null);
-                  setShowCreateModal(true);
-                }}
-                onEditEvent={handleEditEvent}
-                onDeleteEvent={handleDeleteEvent}
-                onImportItems={handleImportItems}
-                onManageParticipants={handleManageParticipants}
-              />
-            )}
-            
-            {adminView === 'users' && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-2xl font-bold mb-4">ניהול משתמשים</h2>
-                <p className="text-gray-600">פונקציונליות ניהול משתמשים תתווסף בקרוב...</p>
-              </div>
-            )}
-            
-            {adminView === 'settings' && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-2xl font-bold mb-4">הגדרות מערכת</h2>
-                <p className="text-gray-600">הגדרות מערכת יתווספו בקרוב...</p>
-              </div>
-            )}
-          </main>
-        </div>
-      ) : (
-        // Regular Dashboard View
-        <>
-          <header className="bg-white shadow-sm">
-            <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-              <div className="flex items-center">
-                <ChefHat className="h-8 w-8 text-orange-500" />
-                <h1 className="ml-3 text-2xl font-bold text-gray-900">הדאשבורד של {user?.name}</h1>
-              </div>
-              
-              <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                <button
-                  onClick={() => setCurrentView('admin')}
-                  className="flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-                >
-                  <Settings className="h-4 w-4 ml-1" />
-                  פאנל ניהול
-                </button>
-                
-                <button onClick={logout} className="text-sm font-medium text-gray-600 hover:text-red-500 flex items-center">
-                  <LogOut size={16} className="ml-1" />
-                  התנתק
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
-                <h2 className="text-xl font-semibold text-gray-700">האירועים שלי ({events.length})</h2>
-                <button onClick={() => {
-                  setEditingEvent(null);
-                  setShowCreateModal(true);
-                }} className="flex items-center bg-orange-500 text-white px-4 py-2 rounded-lg shadow hover:bg-orange-600 transition-colors">
-                    <Plus size={20} className="ml-2" />
-                    צור אירוע חדש
-                </button>
-            </div>
-
-            {isLoadingEvents ? (
-                 <div className="flex items-center justify-center h-64">
-                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-                   <p className="ml-4 text-gray-600">טוען אירועים...</p>
-                 </div>
-            ) : events.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {events.map(event => (
-                        <EventCard key={event.id} event={event} onDelete={handleDeleteEvent} />
-                    ))}
+            {currentView === 'admin' ? (
+                <div className="min-h-screen bg-gray-50">
+                    <AdminHeader
+                        userName={user.name}
+                        onLogout={logout}
+                        currentView={adminView}
+                        onViewChange={setAdminView}
+                    />
+                    <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                        {adminView === 'events' && (
+                            <AdminEventsPanel
+                                events={events}
+                                onCreateEvent={() => {
+                                    setEditingEvent(null);
+                                    setShowCreateModal(true);
+                                }}
+                                onEditEvent={handleEditEvent}
+                                onDeleteEvent={handleDeleteEvent}
+                                onImportItems={handleImportItems}
+                                onManageParticipants={handleManageParticipants}
+                            />
+                        )}
+                        {adminView === 'users' && (
+                            <div className="bg-white rounded-lg shadow-md p-6">
+                                <h2 className="text-2xl font-bold mb-4">ניהול משתמשים</h2>
+                                <p className="text-gray-600">פונקציונליות ניהול משתמשים תתווסף בקרוב...</p>
+                            </div>
+                        )}
+                        {adminView === 'settings' && (
+                            <div className="bg-white rounded-lg shadow-md p-6">
+                                <h2 className="text-2xl font-bold mb-4">הגדרות מערכת</h2>
+                                <p className="text-gray-600">הגדרות מערכת יתווספו בקרוב...</p>
+                            </div>
+                        )}
+                    </main>
                 </div>
             ) : (
-                <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed">
-                    <Home size={48} className="mx-auto text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium text-gray-900">עדיין לא יצרת אירועים</h3>
-                    <p className="mt-1 text-sm text-gray-500">לחץ על "צור אירוע חדש" כדי להתחיל.</p>
-                </div>
+                <>
+                    <header className="bg-white shadow-sm">
+                        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                            <div className="flex items-center">
+                                <ChefHat className="h-8 w-8 text-orange-500" />
+                                <h1 className="ml-3 text-2xl font-bold text-gray-900">הדאשבורד של {user?.name}</h1>
+                            </div>
+                            <div className="flex items-center space-x-4 rtl:space-x-reverse">
+                                <button
+                                    onClick={() => setCurrentView('admin')}
+                                    className="flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                                >
+                                    <Settings className="h-4 w-4 ml-1" />
+                                    פאנל ניהול
+                                </button>
+                                <button onClick={logout} className="text-sm font-medium text-gray-600 hover:text-red-500 flex items-center">
+                                    <LogOut size={16} className="ml-1" />
+                                    התנתק
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+                    <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                        <div className="flex justify-between items-center mb-6 px-4 sm:px-0">
+                            <h2 className="text-xl font-semibold text-gray-700">האירועים שלי ({events.length})</h2>
+                            <button onClick={() => {
+                                setEditingEvent(null);
+                                setShowCreateModal(true);
+                            }} className="flex items-center bg-orange-500 text-white px-4 py-2 rounded-lg shadow hover:bg-orange-600 transition-colors">
+                                <Plus size={20} className="ml-2" />
+                                צור אירוע חדש
+                            </button>
+                        </div>
+
+                        {isLoadingEvents ? (
+                            <div className="flex items-center justify-center h-64">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+                                <p className="ml-4 text-gray-600">טוען נתונים...</p>
+                            </div>
+                        ) : events.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {events.map(event => (
+                                    <EventCard
+                                        key={event.id}
+                                        event={event}
+                                        onDelete={handleDeleteEvent}
+                                        onEdit={handleEditEvent}
+                                        onImport={handleImportItems}
+                                        onManageParticipants={handleManageParticipants}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed">
+                                <Home size={48} className="mx-auto text-gray-400" />
+                                <h3 className="mt-2 text-lg font-medium text-gray-900">עדיין לא יצרת אירועים</h3>
+                                <p className="mt-1 text-sm text-gray-500">לחץ על "צור אירוע חדש" כדי להתחיל.</p>
+                            </div>
+                        )}
+                    </main>
+                </>
             )}
-          </main>
-        </>
-      )}
 
-      {showCreateModal && (
-        <EventFormModal 
-          onClose={() => {
-            setShowCreateModal(false);
-            setEditingEvent(null);
-          }} 
-          onEventCreated={fetchEvents}
-          editingEvent={editingEvent || undefined}
-        />
-      )}
+            {showCreateModal && (
+                <EventFormModal
+                    onClose={() => {
+                        setShowCreateModal(false);
+                        setEditingEvent(null);
+                    }}
+                    onEventCreated={fetchEvents}
+                    editingEvent={editingEvent || undefined}
+                />
+            )}
 
-      {showImportModal && selectedEventForImport && (
-        <ImportItemsModal
-          event={selectedEventForImport}
-          onClose={() => {
-            setShowImportModal(false);
-            setSelectedEventForImport(null);
-          }}
-        />
-      )}
-    </div>
-  );
+            {showImportModal && selectedEventForImport && (
+                <ImportItemsModal
+                    event={selectedEventForImport}
+                    onClose={() => {
+                        setShowImportModal(false);
+                        setSelectedEventForImport(null);
+                    }}
+                />
+            )}
+        </div>
+    );
 };
 
 export default DashboardPage;

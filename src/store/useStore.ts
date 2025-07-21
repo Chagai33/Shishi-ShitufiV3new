@@ -8,22 +8,22 @@ interface AppState {
   user: User | null; // המשתמש המחובר (מארגן או אורח אנונימי)
   currentEvent: ShishiEvent | null; // האירוע הספציפי שבו המשתמש צופה כרגע
   isLoading: boolean;
-  
+
   // פעולות לעדכון המצב
   setUser: (user: User | null) => void;
   setCurrentEvent: (event: ShishiEvent | null) => void;
   setLoading: (loading: boolean) => void;
   clearCurrentEvent: () => void;
-  
+
   // פעולות לעדכון נתונים בתוך האירוע הנוכחי
   updateMenuItem: (itemId: string, updates: Partial<MenuItem>) => void;
   addMenuItem: (item: MenuItem) => void;
   deleteMenuItem: (itemId: string) => void;
-  
+
   updateAssignment: (assignmentId: string, updates: Partial<Assignment>) => void;
   addAssignment: (assignment: Assignment) => void;
   deleteAssignment: (assignmentId: string) => void;
-  
+
   addParticipant: (participant: Participant) => void;
   removeParticipant: (participantId: string) => void;
 }
@@ -36,10 +36,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   // הגדרת הפעולות הבסיסיות
   setUser: (user) => set({ user }),
-  
+
   // פעולה זו תקבל עכשיו את כל אובייקט האירוע מ-Firebase
   setCurrentEvent: (event) => set({ currentEvent: event, isLoading: false }),
-  
+
   setLoading: (loading) => set({ isLoading: loading }),
 
   // פעולה לניקוי נתוני האירוע הנוכחי בעת יציאה מהעמוד
@@ -48,10 +48,10 @@ export const useStore = create<AppState>((set, get) => ({
   // ===============================
   // פעולות לעדכון פריטי תפריט
   // ===============================
-  
+
   updateMenuItem: (itemId, updates) => set((state) => {
     if (!state.currentEvent?.menuItems) return state;
-    
+
     const updatedMenuItems = {
       ...state.currentEvent.menuItems,
       [itemId]: {
@@ -59,7 +59,7 @@ export const useStore = create<AppState>((set, get) => ({
         ...updates
       }
     };
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -70,7 +70,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   addMenuItem: (item) => set((state) => {
     if (!state.currentEvent) return state;
-    
+
     const updatedMenuItems = {
       ...state.currentEvent.menuItems,
       [item.id]: {
@@ -87,7 +87,7 @@ export const useStore = create<AppState>((set, get) => ({
         assignedAt: item.assignedAt
       }
     };
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -98,10 +98,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteMenuItem: (itemId) => set((state) => {
     if (!state.currentEvent?.menuItems) return state;
-    
+
     const updatedMenuItems = { ...state.currentEvent.menuItems };
     delete updatedMenuItems[itemId];
-    
+
     // גם מוחקים את כל השיבוצים הקשורים לפריט זה
     const updatedAssignments = { ...state.currentEvent.assignments };
     Object.keys(updatedAssignments).forEach(assignmentId => {
@@ -109,7 +109,7 @@ export const useStore = create<AppState>((set, get) => ({
         delete updatedAssignments[assignmentId];
       }
     });
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -122,10 +122,10 @@ export const useStore = create<AppState>((set, get) => ({
   // ===============================
   // פעולות לעדכון שיבוצים
   // ===============================
-  
+
   updateAssignment: (assignmentId, updates) => set((state) => {
     if (!state.currentEvent?.assignments) return state;
-    
+
     const updatedAssignments = {
       ...state.currentEvent.assignments,
       [assignmentId]: {
@@ -133,7 +133,7 @@ export const useStore = create<AppState>((set, get) => ({
         ...updates
       }
     };
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -144,7 +144,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   addAssignment: (assignment) => set((state) => {
     if (!state.currentEvent) return state;
-    
+
     const updatedAssignments = {
       ...state.currentEvent.assignments,
       [assignment.id]: {
@@ -157,7 +157,7 @@ export const useStore = create<AppState>((set, get) => ({
         assignedAt: assignment.assignedAt
       }
     };
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -168,10 +168,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteAssignment: (assignmentId) => set((state) => {
     if (!state.currentEvent?.assignments) return state;
-    
+
     const updatedAssignments = { ...state.currentEvent.assignments };
     delete updatedAssignments[assignmentId];
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -183,10 +183,10 @@ export const useStore = create<AppState>((set, get) => ({
   // ===============================
   // פעולות לעדכון משתתפים
   // ===============================
-  
+
   addParticipant: (participant) => set((state) => {
     if (!state.currentEvent) return state;
-    
+
     const updatedParticipants = {
       ...state.currentEvent.participants,
       [participant.id]: {
@@ -194,7 +194,7 @@ export const useStore = create<AppState>((set, get) => ({
         joinedAt: participant.joinedAt
       }
     };
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -205,10 +205,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   removeParticipant: (participantId) => set((state) => {
     if (!state.currentEvent?.participants) return state;
-    
+
     const updatedParticipants = { ...state.currentEvent.participants };
     delete updatedParticipants[participantId];
-    
+
     return {
       currentEvent: {
         ...state.currentEvent,
@@ -228,7 +228,7 @@ export const useStore = create<AppState>((set, get) => ({
 export const selectMenuItems = (state: AppState): MenuItem[] => {
   const event = state.currentEvent;
   if (!event?.menuItems) return [];
-  
+
   // Firebase מחזיר אובייקט, אנחנו ממירים אותו למערך ומוסיפים את המזהה
   return Object.entries(event.menuItems).map(([id, item]) => ({
     ...(item as Omit<MenuItem, 'id'>),
@@ -243,7 +243,7 @@ export const selectMenuItems = (state: AppState): MenuItem[] => {
 export const selectAssignments = (state: AppState): Assignment[] => {
   const event = state.currentEvent;
   if (!event?.assignments) return [];
-  
+
   return Object.entries(event.assignments).map(([id, assignment]) => ({
     ...(assignment as Omit<Assignment, 'id'>),
     id,
@@ -261,36 +261,4 @@ export const selectParticipants = (state: AppState): Participant[] => {
         ...(participant as Omit<Participant, 'id'>),
         id,
     }));
-};
-
-/**
- * סלקטור שמחזיר פריטי תפריט לפי קטגוריה
- */
-export const selectMenuItemsByCategory = (category: string) => (state: AppState): MenuItem[] => {
-  const menuItems = selectMenuItems(state);
-  return menuItems.filter(item => item.category === category);
-};
-
-/**
- * סלקטור שמחזיר שיבוצים של משתמש ספציפי
- */
-export const selectUserAssignments = (userId: string) => (state: AppState): Assignment[] => {
-  const assignments = selectAssignments(state);
-  return assignments.filter(assignment => assignment.userId === userId);
-};
-
-/**
- * סלקטור שמחזיר פריטים פנויים (לא משובצים)
- */
-export const selectAvailableItems = (state: AppState): MenuItem[] => {
-  const menuItems = selectMenuItems(state);
-  return menuItems.filter(item => !item.assignedTo);
-};
-
-/**
- * סלקטור שמחזיר פריטים משובצים
- */
-export const selectAssignedItems = (state: AppState): MenuItem[] => {
-  const menuItems = selectMenuItems(state);
-  return menuItems.filter(item => item.assignedTo);
 };

@@ -28,8 +28,9 @@ export interface EventDetails {
  */
 export interface MenuItem {
   id: string;
+  eventId: string; // הוספנו את מזהה האירוע לנוחות
   name: string;
-  category: 'starter' | 'main' | 'dessert' | 'drink' | 'other';
+  category: 'starter' | 'main' | 'dessert' | 'drink' | 'other' | 'equipment';
   quantity: number;
   notes?: string;
   isRequired: boolean;
@@ -42,11 +43,13 @@ export interface MenuItem {
   assignedAt?: number;
 }
 
+
 /**
  * מייצג שיבוץ של משתמש לפריט.
  */
 export interface Assignment {
   id: string;
+  eventId: string; // הוספנו את מזהה האירוע
   menuItemId: string;
   userId: string;
   userName: string;
@@ -54,7 +57,9 @@ export interface Assignment {
   notes?: string;
   status: 'confirmed' | 'pending' | 'completed';
   assignedAt: number;
+  updatedAt?: number;
 }
+
 
 /**
  * מייצג משתתף שנרשם לאירוע.
@@ -76,8 +81,8 @@ export interface ShishiEvent {
   createdAt: number;
   updatedAt?: number;
   details: EventDetails;
-  menuItems: { [key: string]: Omit<MenuItem, 'id'> };
-  assignments: { [key: string]: Omit<Assignment, 'id'> };
+  menuItems: { [key: string]: Omit<MenuItem, 'id' | 'eventId'> };
+  assignments: { [key: string]: Omit<Assignment, 'id' | 'eventId'> };
   participants: { [key: string]: Omit<Participant, 'id'> };
 }
 

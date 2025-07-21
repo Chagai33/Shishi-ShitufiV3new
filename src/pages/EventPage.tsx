@@ -8,13 +8,29 @@ import { auth } from '../lib/firebase';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { ShishiEvent, MenuItem as MenuItemType, Assignment as AssignmentType, Participant, MenuCategory } from '../types';
-import { Calendar, Clock, MapPin, User as UserIcon, Edit, X, Search, ArrowRight, Plus, Trash2, MessageSquare, Hash, Upload } from 'lucide-react';
+import { Calendar, Clock, MapPin, User as UserIcon, Edit, X, Search, ArrowRight, Plus, Trash2, MessageSquare, Hash, Upload, AlertTriangle } from 'lucide-react';
 import { isEventPast, formatDate, formatTime } from '../utils/dateUtils';
+
+// --- START: NEW COMPONENT FOR STATUS MESSAGES ---
+const EventStatusMessage: React.FC<{ title: string; message: string; }> = ({ title, message }) => (
+    <div className="flex flex-col items-center justify-center text-center p-4 min-h-[50vh]">
+        <AlertTriangle size={48} className="text-orange-400 mb-4" />
+        <h1 className="text-2xl font-bold text-neutral-800 mb-2">{title}</h1>
+        <p className="text-neutral-600 mb-6">{message}</p>
+        <Link
+            to="/"
+            className="inline-block bg-accent text-white px-6 py-2 rounded-lg font-semibold hover:bg-accent/90 transition-colors"
+        >
+            חזור לעמוד הראשי
+        </Link>
+    </div>
+);
+// --- END: NEW COMPONENT ---
 
 // Category names mapping
 const categoryNames: { [key: string]: string } = {
-    starter: 'מנות ראשונות',
-    main: 'מנות עיקריות',
+    starter: 'מנה ראשונה',
+    main: 'מנה עיקרית',
     dessert: 'קינוחים',
     drink: 'משקאות',
     other: 'אחר'
@@ -286,8 +302,12 @@ const EventPage: React.FC = () => {
     const { eventId } = useParams<{ eventId: string }>();
     const [localUser, setLocalUser] = useState<FirebaseUser | null>(null);
     const [isJoining, setIsJoining] = useState(false);
+    
+    // --- START: NEW STATE FOR EVENT STATUS ---
+    const [eventStatus, setEventStatus] = useState<'loading' | 'active' | 'inactive' | 'not-found'>('loading');
+    // --- END: NEW STATE ---
 
-    const { currentEvent, setCurrentEvent, clearCurrentEvent, isLoading } = useStore();
+    const { currentEvent, setCurrentEvent, clearCurrentEvent } = useStore();
     const menuItems = useStore(selectMenuItems);
     const assignments = useStore(selectAssignments);
     const participants = useStore(selectParticipants);
@@ -306,10 +326,30 @@ const EventPage: React.FC = () => {
             if (user) setLocalUser(user);
             else signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
         });
-        if (!eventId) return;
-        const unsubEvent = FirebaseService.subscribeToEvent(eventId, setCurrentEvent);
+
+        if (!eventId) {
+            setEventStatus('not-found');
+            return;
+        }
+
+        // --- START: MODIFIED EVENT SUBSCRIPTION ---
+        const unsubEvent = FirebaseService.subscribeToEvent(eventId, (eventData) => {
+            if (eventData === null) {
+                setEventStatus('not-found');
+                setCurrentEvent(null);
+            } else if (!eventData.details.isActive) {
+                setEventStatus('inactive');
+                setCurrentEvent(eventData);
+            } else {
+                setEventStatus('active');
+                setCurrentEvent(eventData);
+            }
+        });
+        // --- END: MODIFIED EVENT SUBSCRIPTION ---
+
         return () => { unsubAuth(); unsubEvent(); clearCurrentEvent(); };
     }, [eventId, setCurrentEvent, clearCurrentEvent]);
+
 
     const handleJoinEvent = useCallback(async (name: string) => {
         if (!eventId || !localUser || !name.trim()) return;
@@ -371,7 +411,6 @@ const EventPage: React.FC = () => {
             filteredItems = menuItems.filter(item => item.category === selectedCategory);
         }
 
-        // ---  START: NEW SORTING LOGIC ---
         return filteredItems.sort((a, b) => {
             const aIsMine = localUser ? assignments.some(asn => asn.menuItemId === a.id && asn.userId === localUser.uid) : false;
             const bIsMine = localUser ? assignments.some(asn => asn.menuItemId === b.id && asn.userId === localUser.uid) : false;
@@ -387,15 +426,27 @@ const EventPage: React.FC = () => {
 
             return a.name.localeCompare(b.name);
         });
-        // ---  END: NEW SORTING LOGIC ---
-
     }, [searchTerm, selectedCategory, localUser, menuItems, assignments]);
 
-
-    if (isLoading || !currentEvent || !currentEvent.details || !currentEvent.organizerName) {
+    // --- START: NEW RENDER LOGIC ---
+    if (eventStatus === 'loading') {
         return <LoadingSpinner />;
     }
 
+    if (eventStatus === 'not-found') {
+        return <EventStatusMessage title="האירוע לא נמצא" message="יתכן שהקישור שגוי או שהאירוע נמחק על ידי המארגן." />;
+    }
+
+    if (eventStatus === 'inactive') {
+        return <EventStatusMessage title="האירוע אינו פעיל" message="אירוע זה אינו מקבל כרגע משתתפים או שיבוצים חדשים." />;
+    }
+    // --- END: NEW RENDER LOGIC ---
+
+    // We can be sure currentEvent is not null here if status is 'active'
+    if (!currentEvent) {
+        return <LoadingSpinner />; // Fallback for transitional state
+    }
+    
     const isEventActive = currentEvent.details.isActive && !isEventPast(currentEvent.details.date, currentEvent.details.time);
     const isOrganizer = localUser?.uid === currentEvent.organizerId;
 
