@@ -1,3 +1,5 @@
+// src/components/Admin/AdminPanel.tsx
+
 import React, { useState } from 'react';
 import { Plus, Settings, Users, BarChart3, Shield, Trash2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';

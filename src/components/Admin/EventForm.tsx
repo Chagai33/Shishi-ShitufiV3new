@@ -1,7 +1,6 @@
 // src/components/Admin/EventForm.tsx
 import React, { useState } from 'react';
 import { X, Calendar, Clock, MapPin, User, FileText, AlertCircle } from 'lucide-react';
-import { useStore } from '../../store/useStore';
 import { useAuth } from '../../hooks/useAuth';
 import { FirebaseService } from '../../services/firebaseService';
 import { ShishiEvent, EventDetails } from '../../types';

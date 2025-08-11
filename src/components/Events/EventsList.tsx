@@ -1,3 +1,5 @@
+// src/components/Events/EventsList.tsx
+
 import React, { useState, useMemo } from 'react';
 import { Plus, Calendar, Clock, MapPin, ChefHat, Search, X, ArrowRight } from 'lucide-react';
 import { useStore } from '../../store/useStore';
@@ -135,7 +137,13 @@ export function EventsList() {
   };
   
   if (showBulkManager) {
-    return <BulkItemsManager onBack={() => setShowBulkManager(false)} />;
+    // *** התיקון נמצא כאן ***
+    // העברת רשימת כל האירועים לרכיב
+    return <BulkItemsManager 
+              onBack={() => setShowBulkManager(false)} 
+              allEvents={events} 
+              event={activeEvent || undefined} 
+           />;
   }
 
   return (

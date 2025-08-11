@@ -6,12 +6,13 @@ import { useStore } from '../store/useStore';
 import { FirebaseService } from '../services/firebaseService';
 import { ShishiEvent, EventDetails } from '../types';
 import { toast } from 'react-hot-toast';
-import { Plus, LogOut, Calendar, MapPin, Clock, Share2, Eye, Trash2, ChefHat, Home, Settings, Users, ChevronDown } from 'lucide-react';
+import { Plus, LogOut, Calendar, MapPin, Clock, Share2, Eye, Trash2, ChefHat, Home, Settings, Users, ChevronDown, ListChecks } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { AdminHeader } from '../components/Admin/AdminHeader';
 import { AdminEventsPanel } from '../components/Admin/AdminEventsPanel';
 import { ImportItemsModal } from '../components/Admin/ImportItemsModal';
+import { BulkItemsManager } from '../components/Admin/BulkItemsManager';
 
 // --- רכיב כרטיס אירוע ---
 const EventCard: React.FC<{
@@ -20,7 +21,8 @@ const EventCard: React.FC<{
     onEdit: (event: ShishiEvent) => void,
     onImport: (event: ShishiEvent) => void,
     onManageParticipants: (event: ShishiEvent) => void,
-}> = ({ event, onDelete, onEdit, onImport, onManageParticipants }) => {
+    onBulkEdit: (event: ShishiEvent) => void;
+}> = ({ event, onDelete, onEdit, onImport, onManageParticipants, onBulkEdit }) => {
     const navigate = useNavigate();
     const [showAdminActions, setShowAdminActions] = useState(false);
     const eventUrl = `${window.location.origin}/event/${event.id}`;
@@ -37,7 +39,6 @@ const EventCard: React.FC<{
         action();
     };
 
-    // Correct, client-side calculation directly from the event object
     const menuItemsCount = event.menuItems ? Object.keys(event.menuItems).length : 0;
     const assignmentsCount = event.assignments ? Object.keys(event.assignments).length : 0;
     const participantsWithAssignmentsCount = event.assignments
@@ -103,6 +104,9 @@ const EventCard: React.FC<{
                 </div>
                 {showAdminActions && (
                     <div className="mt-4 pt-4 border-t space-y-2">
+                        <button onClick={(e) => handleActionClick(e, () => onBulkEdit(event))} className="w-full flex items-center text-left text-sm p-2 rounded-md hover:bg-neutral-200">
+                            <ListChecks size={14} className="ml-2" /> עריכה מרוכזת
+                        </button>
                         <button onClick={(e) => handleActionClick(e, () => onImport(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">ייבא פריטים</button>
                         <button onClick={(e) => handleActionClick(e, () => onManageParticipants(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">נהל משתתפים</button>
                         <button onClick={(e) => handleActionClick(e, () => onEdit(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">ערוך פרטי אירוע</button>
@@ -203,6 +207,10 @@ const DashboardPage: React.FC = () => {
     const [showImportModal, setShowImportModal] = useState(false);
     const [selectedEventForImport, setSelectedEventForImport] = useState<ShishiEvent | null>(null);
 
+    const [showBulkManager, setShowBulkManager] = useState(false);
+    const [selectedEventForBulkEdit, setSelectedEventForBulkEdit] = useState<ShishiEvent | null>(null);
+
+
     const logout = async () => {
         try {
             await signOut(auth);
@@ -247,6 +255,11 @@ const DashboardPage: React.FC = () => {
         setSelectedEventForImport(event);
         setShowImportModal(true);
     };
+    
+    const handleBulkEdit = (event: ShishiEvent) => {
+        setSelectedEventForBulkEdit(event);
+        setShowBulkManager(true);
+    };
 
     const handleManageParticipants = (event: ShishiEvent) => {
         toast(`ניהול משתתפים עבור ${event.details.title} - בקרוב!`);
@@ -256,6 +269,19 @@ const DashboardPage: React.FC = () => {
         setEditingEvent(event);
         setShowCreateModal(true);
     };
+
+    if (showBulkManager && selectedEventForBulkEdit) {
+        return (
+            <BulkItemsManager
+                event={selectedEventForBulkEdit}
+                allEvents={events}
+                onBack={() => {
+                    setShowBulkManager(false);
+                    setSelectedEventForBulkEdit(null);
+                }}
+            />
+        );
+    }
 
     if (!user) {
         return (
@@ -353,6 +379,7 @@ const DashboardPage: React.FC = () => {
                                         onEdit={handleEditEvent}
                                         onImport={handleImportItems}
                                         onManageParticipants={handleManageParticipants}
+                                        onBulkEdit={handleBulkEdit}
                                     />
                                 ))}
                             </div>
