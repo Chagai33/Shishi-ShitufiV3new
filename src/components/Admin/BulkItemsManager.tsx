@@ -38,7 +38,7 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
 
   const allItems = useMemo(() => {
     if (!allEvents) return [];
-    return allEvents.flatMap(e => 
+    return allEvents.flatMap(e =>
       e.menuItems ? Object.entries(e.menuItems).map(([id, itemData]) => ({
           ...(itemData as Omit<MenuItem, 'id' | 'eventId'>),
           id,
@@ -59,23 +59,19 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
 
   useEffect(() => {
     const items: EditableItem[] = (allItems || []).map(item => ({
-      ...item,
-      isEditing: false, isSelected: false, hasChanges: false, originalData: { ...item }
+      ...item, isEditing: false, isSelected: false, hasChanges: false, originalData: { ...item }
     }));
     setEditableItems(items);
   }, [allItems]);
 
   const categoryOptions = [
-    { value: 'starter', label: 'מנה ראשונה' },
-    { value: 'main', label: 'מנה עיקרית' },
-    { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'שתייה' },
+    { value: 'starter', label: 'מנה ראשונה' }, { value: 'main', label: 'מנה עיקרית' },
+    { value: 'dessert', label: 'קינוח' }, { value: 'drink', label: 'שתייה' },
     { value: 'other', label: 'אחר' }
   ];
   
   const assignedOptions = [
-      { value: 'all', label: 'כל הפריטים'},
-      { value: 'assigned', label: 'משובצים'},
+      { value: 'all', label: 'כל הפריטים'}, { value: 'assigned', label: 'משובצים'},
       { value: 'unassigned', label: 'לא משובצים'},
   ];
 
@@ -84,49 +80,183 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
       if (searchTerm && !item.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
       if (filterEvent !== 'all' && item.eventId !== filterEvent) return false;
       if (filterCategory !== 'all' && item.category !== filterCategory) return false;
-      
       const isItemAssigned = (assignments || []).some(a => a.menuItemId === item.id);
-      
       if (filterAssigned === 'assigned' && !isItemAssigned) return false;
       if (filterAssigned === 'unassigned' && isItemAssigned) return false;
-
       return true;
     });
   }, [editableItems, searchTerm, filterEvent, filterCategory, filterAssigned, assignments]);
 
   const selectedCount = (filteredItems || []).filter(item => item.isSelected).length;
   const changedCount = (editableItems || []).filter(item => item.hasChanges).length;
-  
-  const handleRefreshData = async () => {
-    setIsLoading(true);
-    try {
-      await FirebaseService.forceDataConsistencyCheck();
-      toast.success('הנתונים רועננו בהצלחה');
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      toast.error('שגיאה ברענון הנתונים');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const toggleItemSelection = (itemId: string) => { setEditableItems(prev => (prev || []).map(item => item.id === itemId ? { ...item, isSelected: !item.isSelected } : item)); };
   const toggleSelectAll = () => { const allSelected = (filteredItems || []).every(item => item.isSelected); const filteredIds = (filteredItems || []).map(item => item.id); setEditableItems(prev => (prev || []).map(item => filteredIds.includes(item.id) ? { ...item, isSelected: !allSelected } : item)); };
   const startEditing = (itemId: string) => { setEditableItems(prev => (prev || []).map(item => item.id === itemId ? { ...item, isEditing: true } : item)); };
   const cancelEditing = (itemId: string) => { setEditableItems(prev => (prev || []).map(item => item.id === itemId ? { ...item.originalData, isEditing: false, isSelected: item.isSelected, hasChanges: false, originalData: item.originalData } : item)); };
-  const updateItemField = (itemId: string, field: keyof MenuItem, value: any) => { setEditableItems(prev => (prev || []).map(item => { if (item.id === itemId) { const updatedItem = { ...item, [field]: value }; const originalForComparison = { ...item.originalData }; const currentForComparison = { ...updatedItem, isEditing: false, isSelected: false, hasChanges: false, originalData: undefined }; delete (currentForComparison as any).isEditing; delete (currentForComparison as any).isSelected; delete (currentForComparison as any).hasChanges; delete (currentForComparison as any).originalData; const hasChanges = JSON.stringify(originalForComparison) !== JSON.stringify(currentForComparison); return { ...updatedItem, hasChanges }; } return item; })); };
-  const saveItem = async (itemId: string) => { const item = (editableItems || []).find(i => i.id === itemId); if (!item || !item.hasChanges) return; setIsLoading(true); try { const updates = { name: item.name, category: item.category, quantity: item.quantity, notes: item.notes, isRequired: item.isRequired }; await FirebaseService.updateMenuItem(item.eventId, itemId, updates); updateMenuItem(itemId, updates); setEditableItems(prev => (prev || []).map(i => i.id === itemId ? { ...i, isEditing: false, hasChanges: false, originalData: { ...i, isEditing: false, isSelected: false, hasChanges: false, originalData: i.originalData } } : i)); toast.success('הפריט עודכן בהצלחה'); } catch (error) { console.error('Error saving item:', error); toast.error('שגיאה בשמירת הפריט'); } finally { setIsLoading(false); } };
-  const saveAllChanges = async () => { const changedItems = (editableItems || []).filter(item => item.hasChanges); if (changedItems.length === 0) return; setIsLoading(true); let successCount = 0; let errorCount = 0; try { for (const item of changedItems) { try { const updates = { name: item.name, category: item.category, quantity: item.quantity, notes: item.notes, isRequired: item.isRequired }; await FirebaseService.updateMenuItem(item.eventId, item.id, updates); updateMenuItem(item.id, updates); successCount++; } catch (error) { console.error(`Error updating item ${item.name}:`, error); errorCount++; } } if (successCount > 0) { setEditableItems(prev => (prev || []).map(item => { const wasChanged = changedItems.some(changed => changed.id === item.id); if (wasChanged && successCount > 0) { return { ...item, isEditing: false, hasChanges: false, originalData: { ...item, isEditing: false, isSelected: false, hasChanges: false, originalData: item.originalData } }; } return item; })); toast.success(`${successCount} פריטים עודכנו בהצלחה`); } if (errorCount > 0) toast.error(`${errorCount} פריטים נכשלו בעדכון`); } catch (error) { console.error('Error saving all changes:', error); toast.error('שגיאה בשמירת השינויים'); } finally { setIsLoading(false); } };
-  const executeBulkAction = async () => { const selectedItems = (filteredItems || []).filter(item => item.isSelected); if (selectedItems.length === 0) { toast.error('יש לבחור פריטים לפעולה'); return; } if (bulkAction === 'cancel_assignments') { const assignedItemsToCancel = selectedItems.filter(item => (assignments || []).some(a => a.menuItemId === item.id)); if (assignedItemsToCancel.length === 0) { toast.error('לא נבחרו פריטים משובצים לביטול.'); setBulkAction(null); return; } if (!confirm(`האם אתה בטוח שברצונך לבטל ${assignedItemsToCancel.length} שיבוצים?`)) return; setIsLoading(true); let successCount = 0; let errorCount = 0; try { const allAssignments = [...(assignments || [])]; for (const item of assignedItemsToCancel) { try { const assignmentsToCancel = allAssignments.filter(a => a.menuItemId === item.id); for (const assignment of assignmentsToCancel) { await FirebaseService.cancelAssignment(item.eventId, assignment.id, item.id); deleteAssignment(assignment.id); } successCount++; } catch (error) { console.error(`Error canceling assignment for item ${item.name}:`, error); errorCount++; } } if (successCount > 0) toast.success(`בוטלו ${successCount} שיבוצים`); if (errorCount > 0) toast.error(`ביטול נכשל עבור ${errorCount} שיבוצים`); } finally { setIsLoading(false); setBulkAction(null); } return; } if (bulkAction === 'delete') { if (!confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.length} פריטים?`)) return; setIsLoading(true); let successCount = 0; let errorCount = 0; try { for (const item of selectedItems) { try { await FirebaseService.deleteMenuItem(item.eventId, item.id); deleteMenuItem(item.id); successCount++; } catch (error) { console.error(`Error deleting item ${item.name}:`, error); errorCount++; } } if (successCount > 0) toast.success(`${successCount} פריטים נמחקו בהצלחה`); if (errorCount > 0) toast.error(`${errorCount} פריטים נכשלו במחיקה`); } catch (error) { console.error('Error in bulk delete:', error); toast.error('שגיאה במחיקת הפריטים'); } finally { setIsLoading(false); setBulkAction(null); } } else if (bulkAction === 'category') { setIsLoading(true); let successCount = 0; let errorCount = 0; try { for (const item of selectedItems) { try { await FirebaseService.updateMenuItem(item.eventId, item.id, { category: bulkCategory }); updateMenuItem(item.id, { category: bulkCategory }); successCount++; } catch (error) { console.error(`Error updating category for item ${item.name}:`, error); errorCount++; } } if (successCount > 0) toast.success(`קטגוריה עודכנה עבור ${successCount} פריטים`); if (errorCount > 0) toast.error(`${errorCount} פריטים נכשלו בעדכון`); } catch (error) { console.error('Error in bulk category update:', error); toast.error('שגיאה בעדכון הקטגוריה'); } finally { setIsLoading(false); setBulkAction(null); } } else if (bulkAction === 'required') { setIsLoading(true); let successCount = 0; let errorCount = 0; try { for (const item of selectedItems) { try { await FirebaseService.updateMenuItem(item.eventId, item.id, { isRequired: bulkRequired }); updateMenuItem(item.id, { isRequired: bulkRequired }); successCount++; } catch (error) { console.error(`Error updating required status for item ${item.name}:`, error); errorCount++; } } if (successCount > 0) toast.success(`סטטוס חובה עודכן עבור ${successCount} פריטים`); if (errorCount > 0) toast.error(`${errorCount} פריטים נכשלו בעדכון`); } catch (error) { console.error('Error in bulk required update:', error); toast.error('שגיאה בעדכון סטטוס החובה'); } finally { setIsLoading(false); setBulkAction(null); } } };
+  const updateItemField = (itemId: string, field: keyof MenuItem, value: any) => { setEditableItems(prev => (prev || []).map(item => { if (item.id === itemId) { const updatedItem = { ...item, [field]: value }; const originalForComparison = { ...item.originalData }; const currentForComparison = { ...updatedItem }; delete (currentForComparison as any).isEditing; delete (currentForComparison as any).isSelected; delete (currentForComparison as any).hasChanges; delete (currentForComparison as any).originalData; const hasChanges = JSON.stringify(originalForComparison) !== JSON.stringify(currentForComparison); return { ...updatedItem, hasChanges }; } return item; })); };
+
+  // ****** FIX START ******
+  const saveItem = async (itemId: string) => {
+    const item = editableItems.find(i => i.id === itemId);
+    if (!item || !item.hasChanges) return;
+
+    setIsLoading(true);
+    try {
+      const updates = { name: item.name, category: item.category, quantity: item.quantity, notes: item.notes, isRequired: item.isRequired };
+      // Pass eventId to the service function
+      const success = await FirebaseService.updateMenuItem(item.eventId, item.id, updates);
+
+      if (success) {
+        updateMenuItem(itemId, updates);
+        setEditableItems(prev => prev.map(i => 
+          i.id === itemId ? { ...i, isEditing: false, hasChanges: false, originalData: { ...i, isEditing: false, hasChanges: false, isSelected: i.isSelected, originalData: i.originalData } } : i
+        ));
+        toast.success('הפריט עודכן בהצלחה');
+      } else {
+        throw new Error("Update failed");
+      }
+    } catch (error) {
+      console.error('Error saving item:', error);
+      toast.error('שגיאה בשמירת הפריט');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  // ****** FIX END ******
+
+  const saveAllChanges = async () => {
+    const changedItems = editableItems.filter(item => item.hasChanges);
+    if (changedItems.length === 0) return;
+    setIsLoading(true);
+    let successCount = 0;
+    let errorCount = 0;
+    for (const item of changedItems) {
+      const updates = { name: item.name, category: item.category, quantity: item.quantity, notes: item.notes, isRequired: item.isRequired };
+      if (await FirebaseService.updateMenuItem(item.eventId, item.id, updates)) {
+        updateMenuItem(item.id, updates);
+        successCount++;
+      } else {
+        errorCount++;
+      }
+    }
+    if (successCount > 0) {
+      setEditableItems(prev => prev.map(item => {
+        if (changedItems.some(changed => changed.id === item.id)) {
+          return { ...item, isEditing: false, hasChanges: false, originalData: { ...item, isEditing: false, hasChanges: false, isSelected: item.isSelected, originalData: item.originalData } };
+        }
+        return item;
+      }));
+      toast.success(`${successCount} פריטים עודכנו בהצלחה`);
+    }
+    if (errorCount > 0) toast.error(`${errorCount} פריטים נכשלו בעדכון`);
+    setIsLoading(false);
+  };
   
+  // ****** FIX START ******
+  const executeBulkAction = async () => {
+    const selectedItems = filteredItems.filter(item => item.isSelected);
+    if (selectedItems.length === 0) {
+      toast.error('יש לבחור פריטים לפעולה');
+      return;
+    }
+    
+    setIsLoading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    switch (bulkAction) {
+      case 'delete':
+        if (!confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.length} פריטים? הפעולה כוללת מחיקת שיבוצים קיימים.`)) {
+          setIsLoading(false);
+          return;
+        }
+        const deletedItemIds = new Set<string>();
+        for (const item of selectedItems) {
+          try {
+            await FirebaseService.deleteMenuItem(item.eventId, item.id);
+            deletedItemIds.add(item.id);
+            successCount++;
+          } catch (error) { errorCount++; }
+        }
+        if (deletedItemIds.size > 0) {
+          setEditableItems(prev => prev.filter(item => !deletedItemIds.has(item.id)));
+        }
+        break;
+
+      case 'cancel_assignments':
+        const assignedItemsToCancel = selectedItems.filter(item => assignments.some(a => a.menuItemId === item.id));
+        if (assignedItemsToCancel.length === 0) {
+          toast.error('לא נבחרו פריטים משובצים לביטול.');
+          setIsLoading(false);
+          break;
+        }
+        if (!confirm(`האם אתה בטוח שברצונך לבטל ${assignedItemsToCancel.length} שיבוצים?`)) {
+          setIsLoading(false);
+          return;
+        }
+        for (const item of assignedItemsToCancel) {
+          const itemAssignments = assignments.filter(a => a.menuItemId === item.id);
+          for (const assignment of itemAssignments) {
+            if (await FirebaseService.cancelAssignment(item.eventId, assignment.id, item.id)) {
+              deleteAssignment(assignment.id); // This will update the local state
+              successCount++;
+            } else {
+              errorCount++;
+            }
+          }
+        }
+        break;
+
+      case 'category':
+        for (const item of selectedItems) {
+          if (await FirebaseService.updateMenuItem(item.eventId, item.id, { category: bulkCategory })) {
+            updateMenuItem(item.id, { category: bulkCategory });
+            successCount++;
+          } else { errorCount++; }
+        }
+        break;
+      
+      case 'required':
+        for (const item of selectedItems) {
+          if (await FirebaseService.updateMenuItem(item.eventId, item.id, { isRequired: bulkRequired })) {
+            updateMenuItem(item.id, { isRequired: bulkRequired });
+            successCount++;
+          } else { errorCount++; }
+        }
+        break;
+    }
+
+    if (successCount > 0) {
+      let successMessage = '';
+      switch (bulkAction) {
+        case 'delete': successMessage = `${successCount} פריטים נמחקו בהצלחה`; break;
+        case 'category': successMessage = `קטגוריה עודכנה עבור ${successCount} פריטים`; break;
+        case 'required': successMessage = `סטטוס חובה עודכן עבור ${successCount} פריטים`; break;
+        case 'cancel_assignments': successMessage = `בוטלו שיבוצים עבור ${successCount} פריטים`; break;
+      }
+      toast.success(successMessage);
+    }
+    if (errorCount > 0) toast.error(`הפעולה נכשלה עבור ${errorCount} פריטים`);
+
+    setIsLoading(false);
+    setBulkAction(null);
+    setEditableItems(prev => prev.map(item => ({...item, isSelected: false})));
+  };
+  // ****** FIX END ******
+
   const getEventName = (eventId: string) => { 
     const event = (allEvents || []).find(e => e.id === eventId); 
     return event ? event.details.title : 'אירוע לא ידוע'; 
   };
   const getItemAssignment = (itemId: string) => { return (assignments || []).find(a => a.menuItemId === itemId); };
 
+  // The JSX part remains largely the same, only logic was updated.
+  // The full component code is returned below for completeness.
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4 rtl:space-x-reverse">
           <button onClick={onBack} className="flex items-center space-x-2 rtl:space-x-reverse text-gray-600 hover:text-gray-900 transition-colors">
@@ -139,10 +269,6 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
           </div>
         </div>
         <div className="flex items-center space-x-3 rtl:space-x-reverse">
-          <button onClick={handleRefreshData} disabled={isLoading} className="flex items-center space-x-2 rtl:space-x-reverse px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50">
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>רענן</span>
-          </button>
           {changedCount > 0 && (
             <button onClick={saveAllChanges} disabled={isLoading} className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors">
               <Save className="h-4 w-4" />
@@ -151,7 +277,8 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
           )}
         </div>
       </div>
-
+  
+      {/* Filters */}
       <div className="sticky top-0 z-20 bg-gray-50/80 backdrop-blur-sm py-3 mb-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 space-y-4">
               <div className="relative">
@@ -192,6 +319,7 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
           </div>
       </div>
       
+      {/* Bulk Actions */}
       {selectedCount > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">
@@ -202,34 +330,14 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
             <div className="flex items-center space-x-3 rtl:space-x-reverse">
               {!bulkAction ? (
                 <>
-                    <button 
-    onClick={() => setBulkAction('cancel_assignments')} 
-    className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-0.5 rounded-md text-xs"
-  >
-    בטל שיבוצים
-  </button>
-  <button 
-    onClick={() => setBulkAction('category')} 
-    className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 rounded-md text-xs"
-  >
-    שנה קטגוריה
-  </button>
-  <button 
-    onClick={() => setBulkAction('required')} 
-    className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-0.5 rounded-md text-xs"
-  >
-    שנה חובה
-  </button>
-  <button 
-    onClick={() => setBulkAction('delete')} 
-    className="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded-md text-xs"
-  >
-    מחק
-  </button>
+                  <button onClick={() => setBulkAction('cancel_assignments')} className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-0.5 rounded-md text-xs">בטל שיבוצים</button>
+                  <button onClick={() => setBulkAction('category')} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 rounded-md text-xs">שנה קטגוריה</button>
+                  <button onClick={() => setBulkAction('required')} className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-0.5 rounded-md text-xs">שנה חובה</button>
+                  <button onClick={() => setBulkAction('delete')} className="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded-md text-xs">מחק</button>
                 </>
               ) : (
                 <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                  {bulkAction === 'category' && (<select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value as MenuCategory)} className="px-3 py-1 border border-gray-300 rounded text-sm"><option value="starter">מנה ראשונה</option><option value="main">מנה עיקרית</option><option value="dessert">קינוח</option><option value="drink">שתייה</option><option value="other">אחר</option></select>)}
+                  {bulkAction === 'category' && (<select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value as MenuCategory)} className="px-3 py-1 border border-gray-300 rounded text-sm">{categoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>)}
                   {bulkAction === 'required' && (<select value={bulkRequired.toString()} onChange={(e) => setBulkRequired(e.target.value === 'true')} className="px-3 py-1 border border-gray-300 rounded text-sm"><option value="true">חובה</option><option value="false">לא חובה</option></select>)}
                   <button onClick={executeBulkAction} disabled={isLoading} className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-3 py-1 rounded-md text-sm">{isLoading ? 'מבצע...' : 'בצע'}</button>
                   <button onClick={() => setBulkAction(null)} className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-sm">ביטול</button>
@@ -239,7 +347,8 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
           </div>
         </div>
       )}
-
+  
+      {/* Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
