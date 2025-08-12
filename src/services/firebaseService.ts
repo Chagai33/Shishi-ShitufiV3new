@@ -625,9 +625,17 @@ export class FirebaseService {
    * מאזין לשינויים באוסף הרשימות המוכנות
    */
   static subscribeToPresetLists(
-    callback: (lists: PresetList[]) => void
+    callback: (lists: PresetList[]) => void,
+    organizerId?: string
   ): () => void {
-    const listsRef = ref(database, 'presetLists');
+    // תמיד נשתמש בנתיב הפרטי של המשתמש
+    if (!organizerId) {
+      console.warn('No organizerId provided for preset lists subscription');
+      callback([]);
+      return () => {};
+    }
+    
+    const listsRef = ref(database, `users/${organizerId}/presetLists`);
     const onValueChange = (snapshot: any) => {
       if (snapshot.exists()) {
         const listsData = snapshot.val();
@@ -635,9 +643,105 @@ export class FirebaseService {
           id,
           ...(list as Omit<PresetList, 'id'>)
         }));
+        
+        // הוסף רשימות ברירת מחדל אם הן לא קיימות
+        const hasDefaultParticipants = listsArray.some(list => list.id === 'default-participants');
+        const hasDefaultSalon = listsArray.some(list => list.id === 'default-salon');
+        
+        if (!hasDefaultParticipants) {
+          listsArray.push({
+            id: 'default-participants',
+            name: 'פריטים בסיסיים למשתתפים',
+            type: 'participants',
+            items: [
+              { name: 'חלה', category: 'main', quantity: 2, isRequired: true },
+              { name: 'יין אדום', category: 'drink', quantity: 1, isRequired: true },
+              { name: 'יין לבן', category: 'drink', quantity: 1, isRequired: false },
+              { name: 'סלט ירוק', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'חומוס', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'טחינה', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'פיתות', category: 'main', quantity: 10, isRequired: false },
+              { name: 'גבינות', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'פירות', category: 'dessert', quantity: 1, isRequired: false },
+              { name: 'עוגה', category: 'dessert', quantity: 1, isRequired: false },
+              { name: 'מיץ', category: 'drink', quantity: 2, isRequired: false },
+              { name: 'מים', category: 'drink', quantity: 2, isRequired: true }
+            ],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            createdBy: 'system'
+          });
+        }
+        
+        if (!hasDefaultSalon) {
+          listsArray.push({
+            id: 'default-salon',
+            name: 'ציוד סלון בסיסי',
+            type: 'salon',
+            items: [
+              { name: 'שולחנות', category: 'other', quantity: 4, isRequired: true },
+              { name: 'כיסאות', category: 'other', quantity: 20, isRequired: true },
+              { name: 'מפות שולחן', category: 'other', quantity: 4, isRequired: false },
+              { name: 'צלחות', category: 'other', quantity: 25, isRequired: true },
+              { name: 'כוסות', category: 'other', quantity: 25, isRequired: true },
+              { name: 'סכו"ם', category: 'other', quantity: 25, isRequired: true },
+              { name: 'מגשים', category: 'other', quantity: 5, isRequired: false },
+              { name: 'קנקני מים', category: 'drink', quantity: 3, isRequired: true },
+              { name: 'מפיות', category: 'other', quantity: 50, isRequired: false }
+            ],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            createdBy: 'system'
+          });
+        }
+        
         callback(listsArray);
       } else {
-        callback([]);
+        // אם אין רשימות, צור את רשימות ברירת המחדל
+        const defaultLists: PresetList[] = [
+          {
+            id: 'default-participants',
+            name: 'פריטים בסיסיים למשתתפים',
+            type: 'participants',
+            items: [
+              { name: 'חלה', category: 'main', quantity: 2, isRequired: true },
+              { name: 'יין אדום', category: 'drink', quantity: 1, isRequired: true },
+              { name: 'יין לבן', category: 'drink', quantity: 1, isRequired: false },
+              { name: 'סלט ירוק', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'חומוס', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'טחינה', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'פיתות', category: 'main', quantity: 10, isRequired: false },
+              { name: 'גבינות', category: 'starter', quantity: 1, isRequired: false },
+              { name: 'פירות', category: 'dessert', quantity: 1, isRequired: false },
+              { name: 'עוגה', category: 'dessert', quantity: 1, isRequired: false },
+              { name: 'מיץ', category: 'drink', quantity: 2, isRequired: false },
+              { name: 'מים', category: 'drink', quantity: 2, isRequired: true }
+            ],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            createdBy: 'system'
+          },
+          {
+            id: 'default-salon',
+            name: 'ציוד סלון בסיסי',
+            type: 'salon',
+            items: [
+              { name: 'שולחנות', category: 'other', quantity: 4, isRequired: true },
+              { name: 'כיסאות', category: 'other', quantity: 20, isRequired: true },
+              { name: 'מפות שולחן', category: 'other', quantity: 4, isRequired: false },
+              { name: 'צלחות', category: 'other', quantity: 25, isRequired: true },
+              { name: 'כוסות', category: 'other', quantity: 25, isRequired: true },
+              { name: 'סכו"ם', category: 'other', quantity: 25, isRequired: true },
+              { name: 'מגשים', category: 'other', quantity: 5, isRequired: false },
+              { name: 'קנקני מים', category: 'drink', quantity: 3, isRequired: true },
+              { name: 'מפיות', category: 'other', quantity: 50, isRequired: false }
+            ],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            createdBy: 'system'
+          }
+        ];
+        callback(defaultLists);
       }
     };
 
@@ -652,22 +756,25 @@ export class FirebaseService {
   /**
    * יוצר רשימה מוכנה חדשה
    */
-  static async createPresetList(listData: { name: string; type: 'salon' | 'participants'; items: PresetItem[] }): Promise<string | null> {
-    const user = auth.currentUser;
-    
-    if (!user) {
+  static async createPresetList(
+    listData: { name: string; type: 'salon' | 'participants'; items: PresetItem[] },
+    organizerId?: string
+  ): Promise<string | null> {
+    if (!organizerId) {
       toast.error('אין הרשאה ליצור רשימה');
       return null;
     }
     
     try {
-      const newListRef = push(ref(database, 'presetLists'));
+      // תמיד שמירה תחת המארגן הספציפי
+      const basePath = `users/${organizerId}/presetLists`;
+      const newListRef = push(ref(database, basePath));
       
       const fullListData = {
         ...listData,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        createdBy: user.uid
+        createdBy: organizerId
       };
       
       await set(newListRef, fullListData);
@@ -682,9 +789,13 @@ export class FirebaseService {
   /**
    * מעדכן רשימה מוכנה קיימת
    */
-  static async updatePresetList(listId: string, updates: Partial<PresetList>): Promise<boolean> {
+  static async updatePresetList(
+    listId: string, 
+    updates: Partial<PresetList>,
+    organizerId: string
+  ): Promise<boolean> {
     try {
-      const listRef = ref(database, `presetLists/${listId}`);
+      const listRef = ref(database, `users/${organizerId}/presetLists/${listId}`);
       await update(listRef, { ...updates, updatedAt: Date.now() });
       return true;
     } catch (error) {
@@ -696,9 +807,9 @@ export class FirebaseService {
   /**
    * מוחק רשימה מוכנה
    */
-  static async deletePresetList(listId: string): Promise<void> {
+  static async deletePresetList(listId: string, organizerId: string): Promise<void> {
     try {
-      await remove(ref(database, `presetLists/${listId}`));
+      await remove(ref(database, `users/${organizerId}/presetLists/${listId}`));
     } catch (error) {
       console.error('Error deleting preset list:', error);
       throw error;

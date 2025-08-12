@@ -4,6 +4,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { FirebaseService } from '../../services/firebaseService';
 import { MenuCategory } from '../../types';
 import toast from 'react-hot-toast';
+import { useStore } from '../../store/useStore';
+
+
 
 interface PresetItem {
   name: string;
@@ -57,7 +60,8 @@ const defaultParticipantsList: PresetItem[] = [
 ];
 
 export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave }: PresetListsManagerProps) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user: authUser } = useAuth();
+  const { user } = useStore();
   const [presetLists, setPresetLists] = useState<PresetList[]>([]);
   const [editingList, setEditingList] = useState<PresetList | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -76,45 +80,21 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
 
   // Load preset lists from Firebase
   useEffect(() => {
+    const organizerId = user?.id || authUser?.uid;
+    
+    if (!organizerId) {
+      setIsLoading(false);
+      return;
+    }
+    
     const unsubscribe = FirebaseService.subscribeToPresetLists((lists) => {
       console.log('Received preset lists from Firebase:', lists);
-      
-      // Add default lists if they don't exist
-      const hasDefaultParticipants = lists.some(list => list.id === 'default-participants');
-      const hasDefaultSalon = lists.some(list => list.id === 'default-salon');
-      
-      let allLists = [...lists];
-      
-      if (!hasDefaultParticipants) {
-        allLists.push({
-          id: 'default-participants',
-          name: 'פריטים בסיסיים למשתתפים',
-          type: 'participants',
-          items: defaultParticipantsList,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          createdBy: 'system'
-        });
-      }
-      
-      if (!hasDefaultSalon) {
-        allLists.push({
-          id: 'default-salon',
-          name: 'ציוד סלון בסיסי',
-          type: 'salon',
-          items: defaultSalonList,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          createdBy: 'system'
-        });
-      }
-      
-      setPresetLists(allLists);
+      setPresetLists(lists);
       setIsLoading(false);
-    });
+    }, organizerId);
 
     return unsubscribe;
-  }, []);
+  }, [user?.id, authUser?.uid]);
 
   // Create new preset list
   const handleCreateList = async () => {
@@ -134,7 +114,15 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
           : newListType === 'salon' ? [...defaultSalonList] : [...defaultParticipantsList]
       };
 
-      const listId = await FirebaseService.createPresetList(newList);
+      // העבר את organizerId כדי לשמור תחת המארגן הספציפי
+      const organizerId = user?.id || authUser?.uid;
+      
+      if (!organizerId) {
+        toast.error('שגיאה: לא זוהה מזהה מארגן');
+        return null;
+      }
+      
+      const listId = await FirebaseService.createPresetList(newList, organizerId);
       
       if (listId) {
         toast.success(`רשימה "${newListName.trim()}" נשמרה בהצלחה עם ${newList.items.length} פריטים`);
@@ -164,7 +152,14 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
     }
 
     try {
-      await FirebaseService.deletePresetList(listId);
+      const organizerId = user?.id || authUser?.uid;
+      
+      if (!organizerId) {
+        toast.error('שגיאה: לא זוהה מזהה מארגן');
+        return;
+      }
+      
+      await FirebaseService.deletePresetList(listId, organizerId);
       toast.success('הרשימה נמחקה');
     } catch (error: any) {
       console.error('Error deleting preset list:', error);
@@ -182,10 +177,17 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
     setIsSubmitting(true);
 
     try {
+      const organizerId = user?.id || authUser?.uid;
+      
+      if (!organizerId) {
+        toast.error('שגיאה: לא זוהה מזהה מארגן');
+        return;
+      }
+      
       const success = await FirebaseService.updatePresetList(updatedList.id, {
         name: updatedList.name,
         items: updatedList.items
-      });
+      }, organizerId);
 
       if (success) {
         toast.success('הרשימה עודכנה');

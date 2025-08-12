@@ -3,14 +3,19 @@
     "users": {
       "$uid": {
         ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid"
+        ".write": "$uid === auth.uid",
+        "presetLists": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid",
+          "$listId": {
+            ".read": "auth != null && auth.uid == $uid",
+            ".write": "auth != null && auth.uid == $uid"
+          }
+        }
       }
     },
-
     "events": {
-      // --- הוספת האינדקס החסר ---
       ".indexOn": ["organizerId"],
-      
       ".read": "auth != null",
       ".write": "auth != null",
       "$eventId": {
@@ -37,12 +42,10 @@
         }
       }
     },
-
     "presetLists": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    
     "admins": {
       ".read": true,
       "$uid": {
