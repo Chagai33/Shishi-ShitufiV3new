@@ -157,24 +157,56 @@ const AssignmentModal: React.FC<{
     const [isLoading, setIsLoading] = useState(false);
     const [participantName, setParticipantName] = useState('');
     const [showNameInput, setShowNameInput] = useState(false);
+    const [currentUserName, setCurrentUserName] = useState('');
+    const [useNewName, setUseNewName] = useState(false);
     
     useEffect(() => {
         const currentEvent = useStore.getState().currentEvent;
-        const isParticipant = !!(currentEvent?.participants && currentEvent.participants[user.uid]);
-        if (user.isAnonymous && !isParticipant) {
+        const existingParticipant = currentEvent?.participants?.[user.uid];
+        
+        if (existingParticipant) {
+            // המשתמש כבר רשום - הצג את השם הקיים
+            setCurrentUserName(existingParticipant.name);
+            setShowNameInput(false);
+        } else if (user.isAnonymous) {
+            // משתמש אנונימי חדש - דרוש הזנת שם
             setShowNameInput(true);
+        } else {
+            // משתמש מחובר שעדיין לא רשום לאירוע
+            setCurrentUserName(user.displayName || 'משתמש');
+            setShowNameInput(false);
         }
     }, [user.uid, user.isAnonymous]);
 
     const handleSubmit = async () => {
-        if (showNameInput && !participantName.trim()) { toast.error("כדי להשתבץ, יש להזין שם מלא."); return; }
+        // בדיקת שם - אם זה משתמש חדש או בחר להשתמש בשם חדש
+        if (showNameInput && !participantName.trim()) { 
+            toast.error("כדי להשתבץ, יש להזין שם מלא."); 
+            return; 
+        }
+        if (useNewName && !participantName.trim()) {
+            toast.error("יש להזין שם חדש.");
+            return;
+        }
         if (quantity <= 0) { toast.error("הכמות חייבת להיות גדולה מ-0."); return; }
+        
         setIsLoading(true);
         try {
-            let finalUserName = participantName.trim() || useStore.getState().currentEvent?.participants?.[user.uid]?.name || 'אורח';
-            if (showNameInput && participantName.trim()) {
+            let finalUserName = '';
+            
+            if (useNewName && participantName.trim()) {
+                // המשתמש בחר להשתמש בשם חדש
+                finalUserName = participantName.trim();
                 await FirebaseService.joinEvent(eventId, user.uid, finalUserName);
+            } else if (showNameInput && participantName.trim()) {
+                // משתמש חדש שהזין שם
+                finalUserName = participantName.trim();
+                await FirebaseService.joinEvent(eventId, user.uid, finalUserName);
+            } else {
+                // השתמש בשם הקיים
+                finalUserName = currentUserName;
             }
+            
             if (isEdit && existingAssignment) {
                 await FirebaseService.updateAssignment(eventId, existingAssignment.id, { quantity, notes: notes.trim() });
                 toast.success("השיבוץ עודכן בהצלחה!");
@@ -197,21 +229,56 @@ const AssignmentModal: React.FC<{
                 <div className="p-6">
                     <div className="bg-accent/10 p-4 rounded-lg mb-6 text-center"><p className="font-bold text-accent">{item.name}</p><p className="text-sm text-accent/80">כמות מוצעת: {item.quantity}</p></div>
                     <div className="space-y-4">
-                        {showNameInput && (
+                        {/* הצגת השם הנוכחי */}
+                        {currentUserName && !showNameInput && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-blue-800">תירשם בשם:</p>
+                                        <p className="text-blue-700 font-semibold">{currentUserName}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setUseNewName(true)}
+                                        className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded"
+                                    >
+                                        שנה שם
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* הזנת שם חדש */}
+                        {(showNameInput || useNewName) && (
                             <div>
-                                <label className="block text-sm font-medium text-neutral-700 mb-2">שם מלא*</label>
+                                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                                    {useNewName ? 'שם חדש*' : 'שם מלא*'}
+                                </label>
                                 <div className="relative">
                                     <UserIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
                                     <input 
                                         type="text" 
                                         value={participantName} 
                                         onChange={e => setParticipantName(e.target.value)} 
-                                        placeholder="השם שיוצג לכולם" 
+                                        placeholder={useNewName ? "השם החדש שיוצג" : "השם שיוצג לכולם"} 
                                         className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent" 
                                     />
                                 </div>
+                                {useNewName && (
+                                    <div className="flex space-x-2 rtl:space-x-reverse mt-2">
+                                        <button
+                                            onClick={() => {
+                                                setUseNewName(false);
+                                                setParticipantName('');
+                                            }}
+                                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded"
+                                        >
+                                            ביטול
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
+                        
                         <div>
                             <label className="block text-sm font-medium text-neutral-700 mb-2">כמות שאביא*</label>
                             <div className="relative">
