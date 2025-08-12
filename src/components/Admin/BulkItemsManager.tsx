@@ -147,6 +147,24 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
     });
   }, [editableItems, searchTerm, filterEvent, filterCategory, filterAssigned, allAssignments]);
 
+  // Group items by category in the desired order
+  const categorizedItems = useMemo(() => {
+    const categories = ['starter', 'main', 'dessert', 'drink', 'other'];
+    const grouped: { [key: string]: EditableItem[] } = {};
+    
+    categories.forEach(category => {
+      grouped[category] = filteredItems.filter(item => item.category === category);
+    });
+    
+    return grouped;
+  }, [filteredItems]);
+
+  const getCategoryStats = (categoryItems: EditableItem[]) => {
+    const assigned = categoryItems.filter(item => 
+      (allAssignments || []).some(a => a.menuItemId === item.id)
+    ).length;
+    return { total: categoryItems.length, assigned };
+  };
   const selectedCount = (filteredItems || []).filter(item => item.isSelected).length;
   const changedCount = (editableItems || []).filter(item => item.hasChanges).length;
 
@@ -533,41 +551,49 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
             <span>חזור</span>
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">עריכת פריטים</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">עריכת פריטים</h1>
             <p className="text-gray-600">{event ? `אירוע: ${event.details.title}` : 'כלל האירועים'}</p>
+            <a 
+              href="https://www.linkedin.com/in/chagai-yechiel/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              פותח ע"י חגי יחיאל
+            </a>
           </div>
         </div>
-        <div className="flex items-center space-x-3 rtl:space-x-reverse">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rtl:space-x-reverse">
           {changedCount > 0 && (
             <button onClick={saveAllChanges} disabled={isLoading} className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors">
-              <Save className="h-4 w-4" />
-              <span>שמור הכל ({changedCount})</span>
+              <Save className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="text-sm sm:text-base">שמור הכל ({changedCount})</span>
             </button>
           )}
           <button 
             onClick={toggleEditAll} 
-            className={`px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors text-sm sm:text-base ${
               editAllMode 
                 ? 'bg-red-500 hover:bg-red-600 text-white' 
                 : 'bg-blue-500 hover:bg-blue-600 text-white'
             }`}
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>{editAllMode ? 'בטל עריכה' : 'ערוך הכל'}</span>
           </button>
           <button 
             onClick={() => setShowAddItemForm(true)} 
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors"
+            className="bg-green-500 hover:bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors text-sm sm:text-base"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>הוסף פריט</span>
           </button>
           {event && (
             <button 
               onClick={() => setShowImportModal(true)} 
-              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors"
+              className="bg-purple-500 hover:bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors text-sm sm:text-base"
             >
-              <Upload className="h-4 w-4" />
+              <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
               <span>ייבא פריטים</span>
             </button>
           )}
@@ -575,17 +601,17 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
       </div>
   
       {/* Filters */}
-      <div className="sticky top-0 z-20 bg-gray-50/80 backdrop-blur-sm py-3 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 space-y-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="p-3 space-y-2">
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input type="text" placeholder="חפש פריטים..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pr-10 pl-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <input type="text" placeholder="חפש פריטים..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pr-10 pl-3 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
               </div>
               
               {!event && (
-                <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-2">סנן לפי אירוע:</label>
-                    <div className="flex flex-wrap gap-2">
+                <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    <label className="text-xs font-medium text-gray-700 whitespace-nowrap">אירוע:</label>
+                    <div className="flex flex-wrap gap-1">
                         <FilterButton label="כל האירועים" isActive={filterEvent === 'all'} onClick={() => setFilterEvent('all')} />
                         {(realtimeEvents || []).map(e => (
                             <FilterButton key={e.id} label={e.details.title} isActive={filterEvent === e.id} onClick={() => setFilterEvent(e.id)} />
@@ -594,9 +620,9 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
                 </div>
               )}
 
-              <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">סנן לפי קטגוריה:</label>
-                  <div className="flex flex-wrap gap-2">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                  <label className="text-xs font-medium text-gray-700 whitespace-nowrap">קטגוריה:</label>
+                  <div className="flex flex-wrap gap-1">
                       <FilterButton label="הכל" isActive={filterCategory === 'all'} onClick={() => setFilterCategory('all')} />
                       {categoryOptions.map(option => (
                           <FilterButton key={option.value} label={option.label} isActive={filterCategory === option.value} onClick={() => setFilterCategory(option.value)} />
@@ -604,9 +630,9 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
                   </div>
               </div>
               
-              <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-2">סנן לפי שיבוץ:</label>
-                  <div className="flex flex-wrap gap-2">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                  <label className="text-xs font-medium text-gray-700 whitespace-nowrap">שיבוץ:</label>
+                  <div className="flex flex-wrap gap-1">
                       {assignedOptions.map(option => (
                           <FilterButton key={option.value} label={option.label} isActive={filterAssigned === option.value} onClick={() => setFilterAssigned(option.value)} />
                       ))}
@@ -623,21 +649,21 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
               <CheckCircle className="h-5 w-5 text-blue-600" />
               <span className="text-blue-800 font-medium">{selectedCount} פריטים נבחרו</span>
             </div>
-            <div className="flex items-center space-x-3 rtl:space-x-reverse">
+            <div className="flex flex-wrap items-center gap-2">
               {!bulkAction ? (
                 <>
-                  <button onClick={() => setBulkAction('cancel_assignments')} className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-0.5 rounded-md text-xs">בטל שיבוצים</button>
-                  <button onClick={() => setBulkAction('category')} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 rounded-md text-xs">שנה קטגוריה</button>
-                  <button onClick={() => setBulkAction('required')} className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-0.5 rounded-md text-xs">שנה חובה</button>
-                  <button onClick={() => setBulkAction('delete')} className="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded-md text-xs">מחק</button>
-                  <button onClick={handleSaveAsPreset} className="bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-0.5 rounded-md text-xs">שמור כרשימה</button>
+                  <button onClick={() => setBulkAction('cancel_assignments')} className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded-md text-xs h-7">בטל שיבוצים</button>
+                  <button onClick={() => setBulkAction('category')} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-md text-xs h-7">שנה קטגוריה</button>
+                  <button onClick={() => setBulkAction('required')} className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded-md text-xs h-7">שנה חובה</button>
+                  <button onClick={() => setBulkAction('delete')} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-md text-xs h-7">מחק</button>
+                  <button onClick={handleSaveAsPreset} className="bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-1 rounded-md text-xs h-7">שמור כרשימה</button>
                 </>
               ) : (
-                <div className="flex items-center space-x-3 rtl:space-x-reverse">
+                <div className="flex flex-wrap items-center gap-2">
                   {bulkAction === 'category' && (<select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value as MenuCategory)} className="px-3 py-1 border border-gray-300 rounded text-sm">{categoryOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>)}
                   {bulkAction === 'required' && (<select value={bulkRequired.toString()} onChange={(e) => setBulkRequired(e.target.value === 'true')} className="px-3 py-1 border border-gray-300 rounded text-sm"><option value="true">חובה</option><option value="false">לא חובה</option></select>)}
-                  <button onClick={executeBulkAction} disabled={isLoading} className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-3 py-1 rounded-md text-sm">{isLoading ? 'מבצע...' : 'בצע'}</button>
-                  <button onClick={() => setBulkAction(null)} className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-sm">ביטול</button>
+                  <button onClick={executeBulkAction} disabled={isLoading} className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-3 py-1 rounded-md text-sm h-7">{isLoading ? 'מבצע...' : 'בצע'}</button>
+                  <button onClick={() => setBulkAction(null)} className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-md text-sm h-7">ביטול</button>
                 </div>
               )}
             </div>
@@ -646,47 +672,203 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
       )}
   
       {/* Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-right"><button onClick={toggleSelectAll} className="flex items-center space-x-2 rtl:space-x-reverse">{filteredItems.length > 0 && filteredItems.every(item => item.isSelected) ? (<CheckSquare className="h-4 w-4 text-blue-600" />) : (<Square className="h-4 w-4 text-gray-400" />)}<span className="text-xs font-medium text-gray-500 uppercase">בחר</span></button></th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם פריט</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">אירוע</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">קטגוריה</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">כמות</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">הערות</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">חובה</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">שיבוץ</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {(filteredItems || []).map((item) => {
-                const assignment = getItemAssignment(item.id);
-                return (
-                <tr key={item.id} className={`${item.hasChanges ? 'bg-yellow-50' : ''} ${item.isSelected ? 'bg-blue-50' : ''}`}>
-                  <td className="px-4 py-3"><button onClick={() => toggleItemSelection(item.id)} className="flex items-center">{item.isSelected ? (<CheckSquare className="h-4 w-4 text-blue-600" />) : (<Square className="h-4 w-4 text-gray-400" />)}</button></td>
-                  <td className="px-4 py-3">{item.isEditing ? (<input type="text" value={item.name} onChange={(e) => updateItemField(item.id, 'name', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded text-sm" />) : (<span className="font-medium text-gray-900">{item.name}</span>)}</td>
-                  <td className="px-4 py-3"><span className="text-sm text-gray-600">{getEventName(item.eventId)}</span></td>
-                  <td className="px-4 py-3">{item.isEditing ? (<select value={item.category} onChange={(e) => updateItemField(item.id, 'category', e.target.value as MenuCategory)} className="w-full px-2 py-1 border border-gray-300 rounded text-sm">{categoryOptions.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}</select>) : (<span className="text-sm text-gray-600">{categoryOptions.find(opt => opt.value === item.category)?.label}</span>)}</td>
-                  <td className="px-4 py-3">{item.isEditing ? (<input type="number" min="1" max="100" value={item.quantity} onChange={(e) => updateItemField(item.id, 'quantity', parseInt(e.target.value) || 1)} className="w-full px-2 py-1 border border-gray-300 rounded text-sm" />) : (<span className="text-sm text-gray-600">{item.quantity}</span>)}</td>
-                  <td className="px-4 py-3">{item.isEditing ? (<input type="text" value={item.notes || ''} onChange={(e) => updateItemField(item.id, 'notes', e.target.value || undefined)} className="w-full px-2 py-1 border border-gray-300 rounded text-sm" />) : (<span className="text-sm text-gray-600">{item.notes || '-'}</span>)}</td>
-                  <td className="px-4 py-3">{item.isEditing ? (<input type="checkbox" checked={item.isRequired} onChange={(e) => updateItemField(item.id, 'isRequired', e.target.checked)} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />) : (<span className={`px-2 py-1 rounded-full text-xs ${item.isRequired ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{item.isRequired ? 'חובה' : 'רגיל'}</span>)}</td>
-                  <td className="px-4 py-3">{assignment ? (<div><span className="text-sm font-medium text-green-700">{assignment.userName}</span><div className="text-xs text-gray-500">משובץ</div></div>) : (<span className="text-sm text-gray-500">זמין</span>)}</td>
-                  <td className="px-4 py-3"><div className="flex items-center space-x-2 rtl:space-x-reverse">{item.isEditing ? (<><button onClick={() => saveItem(item.id)} disabled={!item.hasChanges || isLoading} className="p-1 text-green-600 hover:text-green-700 disabled:text-gray-400" title="שמור"><Save className="h-4 w-4" /></button><button onClick={() => cancelEditing(item.id)} className="p-1 text-gray-600 hover:text-gray-700" title="ביטול"><X className="h-4 w-4" /></button></>) : (<button onClick={() => startEditing(item.id)} className="p-1 text-blue-600 hover:text-blue-700" title="ערוך"><Edit className="h-4 w-4" /></button>)}</div></td>
-                </tr>
-              )})}
-            </tbody>
-          </table>
-        </div>
-        {filteredItems.length === 0 && (
-          <div className="text-center py-12">
+      {/* Categorized Items View */}
+      <div className="space-y-6">
+        {filteredItems.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">לא נמצאו פריטים</h3>
             <p className="text-gray-500">נסה לשנות את הפילטרים או מונחי החיפוש</p>
           </div>
+        ) : (
+          ['starter', 'main', 'dessert', 'drink', 'other'].map(category => {
+            const categoryItems = categorizedItems[category] || [];
+            if (categoryItems.length === 0) return null;
+            
+            const stats = getCategoryStats(categoryItems);
+            const categoryLabel = categoryOptions.find(opt => opt.value === category)?.label || category;
+            
+            return (
+              <div key={category} className="bg-white rounded-lg shadow-md overflow-hidden">
+                {/* Category Header */}
+                <div className="bg-gray-50 px-4 py-3 border-b">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">{categoryLabel}</h3>
+                    <div className="flex items-center space-x-4 rtl:space-x-reverse text-sm">
+                      <span className="text-gray-600">
+                        {stats.total} פריטים
+                      </span>
+                      <span className="text-green-600 font-medium">
+                        {stats.assigned} שובצו
+                      </span>
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${stats.total > 0 ? (stats.assigned / stats.total) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Items Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-4 py-2 text-right">
+                          <button 
+                            onClick={() => {
+                              const allCategorySelected = categoryItems.every(item => item.isSelected);
+                              const categoryIds = categoryItems.map(item => item.id);
+                              setEditableItems(prev => prev.map(item => 
+                                categoryIds.includes(item.id) 
+                                  ? { ...item, isSelected: !allCategorySelected } 
+                                  : item
+                              ));
+                            }}
+                            className="flex items-center space-x-2 rtl:space-x-reverse"
+                          >
+                            {categoryItems.length > 0 && categoryItems.every(item => item.isSelected) ? (
+                              <CheckSquare className="h-4 w-4 text-blue-600" />
+                            ) : (
+                              <Square className="h-4 w-4 text-gray-400" />
+                            )}
+                            <span className="text-xs font-medium text-gray-500 uppercase">בחר</span>
+                          </button>
+                        </th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">שם פריט</th>
+                        {!event && (
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">אירוע</th>
+                        )}
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">כמות</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">הערות</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">חובה</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">שיבוץ</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {categoryItems.map((item) => {
+                        const assignment = getItemAssignment(item.id);
+                        return (
+                          <tr key={item.id} className={`${item.hasChanges ? 'bg-yellow-50' : ''} ${item.isSelected ? 'bg-blue-50' : ''}`}>
+                            <td className="px-4 py-3">
+                              <button onClick={() => toggleItemSelection(item.id)} className="flex items-center">
+                                {item.isSelected ? (
+                                  <CheckSquare className="h-4 w-4 text-blue-600" />
+                                ) : (
+                                  <Square className="h-4 w-4 text-gray-400" />
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.isEditing ? (
+                                <input 
+                                  type="text" 
+                                  value={item.name} 
+                                  onChange={(e) => updateItemField(item.id, 'name', e.target.value)} 
+                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm" 
+                                />
+                              ) : (
+                                <span className="font-medium text-gray-900">{item.name}</span>
+                              )}
+                            </td>
+                            {!event && (
+                              <td className="px-4 py-3">
+                                <span className="text-sm text-gray-600">{getEventName(item.eventId)}</span>
+                              </td>
+                            )}
+                            <td className="px-4 py-3">
+                              {item.isEditing ? (
+                                <input 
+                                  type="number" 
+                                  min="1" 
+                                  max="100" 
+                                  value={item.quantity} 
+                                  onChange={(e) => updateItemField(item.id, 'quantity', parseInt(e.target.value) || 1)} 
+                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm" 
+                                />
+                              ) : (
+                                <span className="text-sm text-gray-600">{item.quantity}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.isEditing ? (
+                                <input 
+                                  type="text" 
+                                  value={item.notes || ''} 
+                                  onChange={(e) => updateItemField(item.id, 'notes', e.target.value || undefined)} 
+                                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm" 
+                                />
+                              ) : (
+                                <span className="text-sm text-gray-600">{item.notes || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.isEditing ? (
+                                <input 
+                                  type="checkbox" 
+                                  checked={item.isRequired} 
+                                  onChange={(e) => updateItemField(item.id, 'isRequired', e.target.checked)} 
+                                  className="rounded border-gray-300 text-red-600 focus:ring-red-500" 
+                                />
+                              ) : (
+                                <span className={`px-2 py-1 rounded-full text-xs ${item.isRequired ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                                  {item.isRequired ? 'חובה' : 'רגיל'}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {assignment ? (
+                                <div>
+                                  <span className="text-sm font-medium text-green-700">{assignment.userName}</span>
+                                  <div className="text-xs text-gray-500">משובץ</div>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-500">זמין</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                                {item.isEditing ? (
+                                  <>
+                                    <button 
+                                      onClick={() => saveItem(item.id)} 
+                                      disabled={!item.hasChanges || isLoading} 
+                                      className="p-1 text-green-600 hover:text-green-700 disabled:text-gray-400" 
+                                      title="שמור"
+                                    >
+                                      <Save className="h-4 w-4" />
+                                    </button>
+                                    <button 
+                                      onClick={() => cancelEditing(item.id)} 
+                                      className="p-1 text-gray-600 hover:text-gray-700" 
+                                      title="ביטול"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button 
+                                    onClick={() => startEditing(item.id)} 
+                                    className="p-1 text-blue-600 hover:text-blue-700" 
+                                    title="ערוך"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
       <div className="mt-6 bg-gray-50 rounded-lg p-4">

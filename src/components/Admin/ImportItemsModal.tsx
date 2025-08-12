@@ -237,7 +237,7 @@ export function ImportItemsModal({ event, onClose }: ImportItemsModalProps) {
     if (duplicateItems.length > 0) {
       setItemsToImport({ newItems, duplicateItems });
       setShowDuplicateConfirm(true);
-      toast(`נמצאו ${duplicateItems.length} פריטים כפולים. בחר איך להמשיך.`);
+      toast.success(`נמצאו ${duplicateItems.length} פריטים כפולים. בחר איך להמשיך.`);
     } else {
       await executeImport(newItems);
     }

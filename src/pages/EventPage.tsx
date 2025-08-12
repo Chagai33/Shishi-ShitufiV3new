@@ -8,29 +8,13 @@ import { auth } from '../lib/firebase';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { ShishiEvent, MenuItem as MenuItemType, Assignment as AssignmentType, Participant, MenuCategory } from '../types';
-import { Calendar, Clock, MapPin, User as UserIcon, Edit, X, Search, ArrowRight, Plus, Trash2, MessageSquare, Hash, Upload, AlertTriangle } from 'lucide-react';
-import { isEventPast, formatDate, formatTime } from '../utils/dateUtils';
-
-// --- START: NEW COMPONENT FOR STATUS MESSAGES ---
-const EventStatusMessage: React.FC<{ title: string; message: string; }> = ({ title, message }) => (
-    <div className="flex flex-col items-center justify-center text-center p-4 min-h-[50vh]">
-        <AlertTriangle size={48} className="text-orange-400 mb-4" />
-        <h1 className="text-2xl font-bold text-neutral-800 mb-2">{title}</h1>
-        <p className="text-neutral-600 mb-6">{message}</p>
-        <Link
-            to="/"
-            className="inline-block bg-accent text-white px-6 py-2 rounded-lg font-semibold hover:bg-accent/90 transition-colors"
-        >
-            חזור לעמוד הראשי
-        </Link>
-    </div>
-);
-// --- END: NEW COMPONENT ---
+import { Calendar, Clock, MapPin, ChefHat, User as UserIcon, AlertCircle, Edit, X, Search, ArrowRight, Plus, Trash2, MessageSquare, Hash, Upload } from 'lucide-react';
+import { isEventPast } from '../utils/dateUtils';
 
 // Category names mapping
 const categoryNames: { [key: string]: string } = {
     starter: 'מנה ראשונה',
-    main: 'מנה עיקרית',
+    main: 'מנה עיקרית', 
     dessert: 'קינוחים',
     drink: 'משקאות',
     other: 'אחר'
@@ -47,11 +31,9 @@ const CategorySelector: React.FC<{
     main: { name: 'מנות עיקריות', icon: '/Icons/1.gif', color: '#ff8a00', glowClass: 'glow-main' },
     dessert: { name: 'קינוחים', icon: '/Icons/3.gif', color: '#9b59b6', glowClass: 'glow-dessert' },
     drink: { name: 'משקאות', icon: '/Icons/4.gif', color: '#2ecc71', glowClass: 'glow-drink' },
-    equipment: { name: 'ציוד והגשה', icon: '/Icons/6.gif', color: '#34495e', glowClass: 'glow-equipment' },
     other: { name: 'אחר', icon: '/Icons/5.gif', color: '#95a5a6', glowClass: 'glow-other' },
   };
-  const categoriesOrder = ['starter', 'main', 'dessert', 'drink', 'equipment', 'other'];
-
+  const categoriesOrder = ['starter', 'main', 'dessert', 'drink', 'other'];
 
   const getCategoryProgress = (category: string) => {
     const itemsInCategory = menuItems.filter(item => item.category === category);
@@ -80,12 +62,12 @@ const CategorySelector: React.FC<{
                 <div className="w-full">
                   <p className="text-center text-neutral-500 text-sm mb-4">{progress.assigned} / {progress.total} שובצו</p>
                   <div className="w-full bg-neutral-200 rounded-full h-2.5">
-                    <div
-                      className="h-2.5 rounded-full"
-                      style={{
-                        width: `${percentage}%`,
-                        backgroundColor: details.color,
-                        transition: 'width 0.5s ease-in-out'
+                    <div 
+                      className="h-2.5 rounded-full" 
+                      style={{ 
+                        width: `${percentage}%`, 
+                        backgroundColor: details.color, 
+                        transition: 'width 0.5s ease-in-out' 
                       }}
                     ></div>
                   </div>
@@ -162,20 +144,20 @@ const MenuItemCard: React.FC<{
 };
 
 // --- Component: AssignmentModal ---
-const AssignmentModal: React.FC<{
-  item: MenuItemType;
-  eventId: string;
-  user: FirebaseUser;
-  onClose: () => void;
-  isEdit?: boolean;
-  existingAssignment?: AssignmentType;
+const AssignmentModal: React.FC<{ 
+  item: MenuItemType; 
+  eventId: string; 
+  user: FirebaseUser; 
+  onClose: () => void; 
+  isEdit?: boolean; 
+  existingAssignment?: AssignmentType; 
 }> = ({ item, eventId, user, onClose, isEdit = false, existingAssignment }) => {
     const [quantity, setQuantity] = useState(existingAssignment?.quantity || item.quantity);
     const [notes, setNotes] = useState(existingAssignment?.notes || '');
     const [isLoading, setIsLoading] = useState(false);
     const [participantName, setParticipantName] = useState('');
     const [showNameInput, setShowNameInput] = useState(false);
-
+    
     useEffect(() => {
         const currentEvent = useStore.getState().currentEvent;
         const isParticipant = !!(currentEvent?.participants && currentEvent.participants[user.uid]);
@@ -204,10 +186,10 @@ const AssignmentModal: React.FC<{
                 toast.success(`שובצת בהצלחה לפריט: ${item.name}`);
             }
             onClose();
-        } catch (error: any) { toast.error(error.message || "אירעה שגיאה."); }
+        } catch (error: any) { toast.error(error.message || "אירעה שגיאה."); } 
         finally { setIsLoading(false); }
     };
-
+    
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
@@ -220,12 +202,12 @@ const AssignmentModal: React.FC<{
                                 <label className="block text-sm font-medium text-neutral-700 mb-2">שם מלא*</label>
                                 <div className="relative">
                                     <UserIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                                    <input
-                                        type="text"
-                                        value={participantName}
-                                        onChange={e => setParticipantName(e.target.value)}
-                                        placeholder="השם שיוצג לכולם"
-                                        className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
+                                    <input 
+                                        type="text" 
+                                        value={participantName} 
+                                        onChange={e => setParticipantName(e.target.value)} 
+                                        placeholder="השם שיוצג לכולם" 
+                                        className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent" 
                                     />
                                 </div>
                             </div>
@@ -234,12 +216,12 @@ const AssignmentModal: React.FC<{
                             <label className="block text-sm font-medium text-neutral-700 mb-2">כמות שאביא*</label>
                             <div className="relative">
                                 <Hash className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                                <input
-                                    type="number"
-                                    value={quantity}
-                                    onChange={e => setQuantity(parseInt(e.target.value, 10) || 1)}
-                                    className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
-                                    min="1"
+                                <input 
+                                    type="number" 
+                                    value={quantity} 
+                                    onChange={e => setQuantity(parseInt(e.target.value, 10) || 1)} 
+                                    className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent" 
+                                    min="1" 
                                 />
                             </div>
                         </div>
@@ -247,12 +229,12 @@ const AssignmentModal: React.FC<{
                             <label className="block text-sm font-medium text-neutral-700 mb-2">הערות (אופציונלי)</label>
                             <div className="relative">
                                 <MessageSquare className="absolute right-3 top-3 h-4 w-4 text-neutral-400" />
-                                <textarea
-                                    value={notes}
-                                    onChange={e => setNotes(e.target.value)}
-                                    className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
-                                    rows={3}
-                                    placeholder="לדוגמה: ללא גלוטן, טבעוני..."
+                                <textarea 
+                                    value={notes} 
+                                    onChange={e => setNotes(e.target.value)} 
+                                    className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent" 
+                                    rows={3} 
+                                    placeholder="לדוגמה: ללא גלוטן, טבעוני..." 
                                 />
                             </div>
                         </div>
@@ -303,11 +285,7 @@ const EventPage: React.FC = () => {
     const [localUser, setLocalUser] = useState<FirebaseUser | null>(null);
     const [isJoining, setIsJoining] = useState(false);
     
-    // --- START: NEW STATE FOR EVENT STATUS ---
-    const [eventStatus, setEventStatus] = useState<'loading' | 'active' | 'inactive' | 'not-found'>('loading');
-    // --- END: NEW STATE ---
-
-    const { currentEvent, setCurrentEvent, clearCurrentEvent } = useStore();
+    const { currentEvent, setCurrentEvent, clearCurrentEvent, isLoading } = useStore();
     const menuItems = useStore(selectMenuItems);
     const assignments = useStore(selectAssignments);
     const participants = useStore(selectParticipants);
@@ -320,36 +298,16 @@ const EventPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [view, setView] = useState<'categories' | 'items'>('categories');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
+    
     useEffect(() => {
         const unsubAuth = onAuthStateChanged(auth, (user) => {
             if (user) setLocalUser(user);
             else signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
         });
-
-        if (!eventId) {
-            setEventStatus('not-found');
-            return;
-        }
-
-        // --- START: MODIFIED EVENT SUBSCRIPTION ---
-        const unsubEvent = FirebaseService.subscribeToEvent(eventId, (eventData) => {
-            if (eventData === null) {
-                setEventStatus('not-found');
-                setCurrentEvent(null);
-            } else if (!eventData.details.isActive) {
-                setEventStatus('inactive');
-                setCurrentEvent(eventData);
-            } else {
-                setEventStatus('active');
-                setCurrentEvent(eventData);
-            }
-        });
-        // --- END: MODIFIED EVENT SUBSCRIPTION ---
-
+        if (!eventId) return;
+        const unsubEvent = FirebaseService.subscribeToEvent(eventId, setCurrentEvent);
         return () => { unsubAuth(); unsubEvent(); clearCurrentEvent(); };
     }, [eventId, setCurrentEvent, clearCurrentEvent]);
-
 
     const handleJoinEvent = useCallback(async (name: string) => {
         if (!eventId || !localUser || !name.trim()) return;
@@ -364,7 +322,7 @@ const EventPage: React.FC = () => {
             }
         } catch (error) { toast.error("שגיאה בהצטרפות לאירוע."); } finally { setIsJoining(false); }
     }, [eventId, localUser, itemToAssignAfterJoin]);
-
+    
     const handleAssignClick = (item: MenuItemType) => {
         if (!localUser) return;
         const isParticipant = participants.some(p => p.id === localUser.uid);
@@ -375,128 +333,88 @@ const EventPage: React.FC = () => {
             setModalState({ type: 'assign', item });
         }
     };
-
+    
     const handleCancelClick = async (assignment: AssignmentType) => {
-        if (!eventId || !localUser) return;
-
-        const menuItem = menuItems.find(item => item.id === assignment.menuItemId);
-        const isCreator = menuItem?.creatorId === localUser.uid;
-
-        if (isCreator) {
-            if (window.confirm("ביטול השיבוץ ימחק גם את הפריט שיצרת. האם להמשיך?")) {
-                await FirebaseService.deleteMenuItem(eventId, assignment.menuItemId);
-                toast.success("הפריט והשיבוץ נמחקו");
-            }
-        } else {
-            if (window.confirm("האם לבטל את השיבוץ?")) {
-                await FirebaseService.cancelAssignment(eventId, assignment.id, assignment.menuItemId);
-                toast.success("השיבוץ בוטל");
-            }
+        if (!eventId) return;
+        if (window.confirm("האם לבטל את השיבוץ?")) {
+            await FirebaseService.cancelAssignment(eventId, assignment.id, assignment.menuItemId);
+            toast.success("השיבוץ בוטל");
         }
     };
-
+    
     const handleEditClick = (item: MenuItemType, assignment: AssignmentType) => setModalState({ type: 'edit', item, assignment });
     const handleBackToCategories = () => { setView('categories'); setSelectedCategory(null); setSearchTerm(''); };
     const handleCategoryClick = (category: string) => { setSelectedCategory(category); setView('items'); };
-    const handleMyAssignmentsClick = () => { view === 'items' && selectedCategory === 'my-assignments' ? handleBackToCategories() : setSelectedCategory('my-assignments'); setView('items'); };
-
-    const itemsToDisplay = useMemo(() => {
-        let filteredItems: MenuItemType[] = [];
-
-        if (searchTerm) {
-            filteredItems = menuItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        } else if (selectedCategory === 'my-assignments' && localUser) {
-            filteredItems = menuItems.filter(item => assignments.some(a => a.menuItemId === item.id && a.userId === localUser.uid));
-        } else if (selectedCategory) {
-            filteredItems = menuItems.filter(item => item.category === selectedCategory);
+    
+    const handleMyAssignmentsClick = () => { 
+        if (view === 'items' && selectedCategory === 'my-assignments') {
+            // אם אנחנו כבר בתצוגת השיבוצים שלי, חזור לקטגוריות
+            setView('categories');
+            setSelectedCategory(null);
+            setSearchTerm('');
+        } else {
+            // אחרת, עבור לתצוגת השיבוצים שלי
+            setSelectedCategory('my-assignments');
+            setView('items');
         }
-
-        return filteredItems.sort((a, b) => {
-            const aIsMine = localUser ? assignments.some(asn => asn.menuItemId === a.id && asn.userId === localUser.uid) : false;
-            const bIsMine = localUser ? assignments.some(asn => asn.menuItemId === b.id && asn.userId === localUser.uid) : false;
-
-            if (aIsMine && !bIsMine) return -1;
-            if (!aIsMine && bIsMine) return 1;
-
-            const aIsAssigned = assignments.some(asn => asn.menuItemId === a.id);
-            const bIsAssigned = assignments.some(asn => asn.menuItemId === b.id);
-
-            if (!aIsAssigned && bIsAssigned) return -1;
-            if (aIsAssigned && !bIsAssigned) return 1;
-
-            return a.name.localeCompare(b.name);
-        });
+    };
+    
+    const itemsToDisplay = useMemo(() => {
+        if (searchTerm) return menuItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        if (selectedCategory === 'my-assignments' && localUser) return menuItems.filter(item => assignments.some(a => a.menuItemId === item.id && a.userId === localUser.uid));
+        if (selectedCategory) return menuItems.filter(item => item.category === selectedCategory);
+        return [];
     }, [searchTerm, selectedCategory, localUser, menuItems, assignments]);
 
-    // --- START: NEW RENDER LOGIC ---
-    if (eventStatus === 'loading') {
+    if (isLoading || !currentEvent || !currentEvent.details || !currentEvent.organizerName) {
         return <LoadingSpinner />;
     }
 
-    if (eventStatus === 'not-found') {
-        return <EventStatusMessage title="האירוע לא נמצא" message="יתכן שהקישור שגוי או שהאירוע נמחק על ידי המארגן." />;
-    }
-
-    if (eventStatus === 'inactive') {
-        return <EventStatusMessage title="האירוע אינו פעיל" message="אירוע זה אינו מקבל כרגע משתתפים או שיבוצים חדשים." />;
-    }
-    // --- END: NEW RENDER LOGIC ---
-
-    // We can be sure currentEvent is not null here if status is 'active'
-    if (!currentEvent) {
-        return <LoadingSpinner />; // Fallback for transitional state
-    }
-    
+    const participantName = participants.find(p => p.id === localUser?.uid)?.name || 'אורח';
     const isEventActive = currentEvent.details.isActive && !isEventPast(currentEvent.details.date, currentEvent.details.time);
     const isOrganizer = localUser?.uid === currentEvent.organizerId;
 
     return (
         <div className="min-h-screen bg-background">
-            <header className="bg-white shadow-sm p-4 sticky top-0 z-40">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <Link to="/" className="text-accent font-bold text-xl">שישי שיתופי</Link>
-                    {localUser?.isAnonymous && (
-                        <div className="text-xs text-neutral-500 text-right">
-                            <span>פותח ע"י </span>
-                            <a href="https://www.linkedin.com/in/chagai-yechiel/" target="_blank" rel="noopener noreferrer" className="font-semibold text-accent hover:underline">
-                                חגי יחיאל
-                            </a>
-                        </div>
-                    )}
+            <header className="bg-white shadow-sm p-4 text-center sticky top-0 z-40">
+                <Link to="/" className="text-accent font-bold text-xl">שישי שיתופי</Link>
+                <div className="mt-1">
+                    <a 
+                        href="https://www.linkedin.com/in/chagai-yechiel/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        פותח ע"י חגי יחיאל
+                    </a>
                 </div>
             </header>
-            <main className="max-w-4xl mx-auto py-4 sm:py-6 px-4">
-                <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-                    <h1 className="text-xl sm:text-2xl font-bold text-neutral-800 mb-4">{currentEvent.details.title}</h1>
+            <div className="max-w-4xl mx-auto px-4 pt-4">
+                <Link 
+                    to="/" 
+                    className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors mb-4"
+                >
+                    <ArrowRight size={16} className="ml-1" />
+                    חזור לעמוד הראשי
+                </Link>
+            </div>
+            <main className="max-w-4xl mx-auto py-8 px-4">
+                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+                    <h1 className="text-3xl font-bold text-neutral-900 mb-2">{currentEvent.details.title}</h1>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-500 mb-4">
-                        <p className="flex items-center"><Calendar size={14} className="ml-1.5" /> {formatDate(currentEvent.details.date)}</p>
-                        <p className="flex items-center"><Clock size={14} className="ml-1.5" /> {formatTime(currentEvent.details.time)}</p>
-                        <p className="flex items-center"><MapPin size={14} className="ml-1.5" /> {currentEvent.details.location}</p>
+                        <p className="flex items-center"><Calendar size={14} className="ml-1" /> {new Date(currentEvent.details.date).toLocaleDateString('he-IL')}</p>
+                        <p className="flex items-center"><Clock size={14} className="ml-1" /> {currentEvent.details.time}</p>
+                        <p className="flex items-center"><MapPin size={14} className="ml-1" /> {currentEvent.details.location}</p>
                         <p className="flex items-center"><UserIcon size={14} className="ml-1" /> מארגן: {currentEvent.organizerName}</p>
                     </div>
                 </div>
-                <div className="bg-white rounded-xl shadow-md p-4 mb-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-                        <div className="w-full sm:flex-grow relative">
-    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400 pointer-events-none" />
-    <input
-        type="text"
-        value={searchTerm}
-        onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }}
-        placeholder="חפש פריט..."
-        className="w-full pr-10 pl-10 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent"
-    />
-    {searchTerm && (
-        <button
-            onClick={() => setSearchTerm('')}
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
-            aria-label="נקה חיפוש"
-        >
-            <X className="h-5 w-5" />
-        </button>
-    )}
-</div>
-                        <button onClick={handleMyAssignmentsClick} className={`w-full sm:w-auto px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors whitespace-nowrap ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>השיבוצים שלי</button>
+                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+                    <div className="flex items-center space-x-4 rtl:space-x-reverse">
+                        <div className="flex-grow relative">
+                            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                            <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} placeholder="חפש פריט..." className="w-full pr-10 pl-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" />
+                        </div>
+                        <button onClick={handleMyAssignmentsClick} className={`px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>השיבוצים שלי</button>
                     </div>
                 </div>
 
@@ -516,51 +434,17 @@ const EventPage: React.FC = () => {
                         ) : <p className="text-center text-neutral-500 py-8">לא נמצאו פריטים.</p>}
                     </div>
                 )}
-
-                <div className="mt-12 text-center">
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <button onClick={() => setModalState({ type: 'add-user-item' })} className="bg-success text-white px-8 py-3 rounded-lg shadow-lg hover:bg-success/90 transition-colors font-semibold text-lg">
-                            <Plus size={22} className="inline-block ml-2" />הוסף פריט משלך
-                        </button>
-                        {isOrganizer && (
-                            <button onClick={() => setShowImportModal(true)} className="bg-blue-500 text-white px-8 py-3 rounded-lg shadow-lg hover:bg-blue-600 transition-colors font-semibold text-lg">
-                                <Upload size={22} className="inline-block ml-2" />ייבא פריטים
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {localUser?.isAnonymous && (
-                    <div className="mt-16 text-center bg-white p-8 rounded-xl shadow-md border">
-                        <h3 className="text-2xl font-bold text-neutral-800 mb-2">
-                            רוצה לארגן אירוע כזה?
-                        </h3>
-                        <p className="text-neutral-600 mb-6">
-                            הצטרף כמארגן וצור אירועים קהילתיים משלך בקלות ובחינם.
-                        </p>
-                        <Link
-                            to="/login"
-                            className="inline-block bg-accent text-white px-8 py-3 rounded-lg shadow-lg hover:bg-accent/90 transition-transform hover:scale-105 font-semibold text-lg"
-                        >
-                            צור אירוע משלך
-                        </Link>
-                    </div>
-                )}
+                
+           
             </main>
 
             {showNameModal && (<NameModal isLoading={isJoining} onSave={handleJoinEvent} />)}
             {localUser && modalState?.type === 'assign' && modalState.item && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} />)}
             {localUser && modalState?.type === 'edit' && modalState.item && modalState.assignment && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} isEdit={true} existingAssignment={modalState.assignment} />)}
             {modalState?.type === 'add-user-item' && currentEvent && (
-                <UserMenuItemForm
-                    event={currentEvent}
-                    onClose={() => setModalState(null)}
-                />
-            )}
-            {showImportModal && currentEvent && (
-                <ImportItemsModal
-                    event={currentEvent}
-                    onClose={() => setShowImportModal(false)}
+                <UserMenuItemForm 
+                    event={currentEvent} 
+                    onClose={() => setModalState(null)} 
                 />
             )}
         </div>
