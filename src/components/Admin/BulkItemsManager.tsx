@@ -5,6 +5,8 @@ import { ArrowRight, Edit, Trash2, Save, X, CheckSquare, Square, Search, Filter,
 import { useStore } from '../../store/useStore';
 import { FirebaseService } from '../../services/firebaseService';
 import { MenuItem, MenuCategory, ShishiEvent } from '../../types';
+import { ref, onValue, off } from 'firebase/database';
+import { database } from '../../lib/firebase';
 import toast from 'react-hot-toast';
 
 interface BulkItemsManagerProps {
@@ -34,18 +36,63 @@ const FilterButton = ({ label, isActive, onClick }: { label: string, isActive: b
 );
 
 export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerProps) {
-  const { assignments, updateMenuItem, deleteMenuItem, deleteAssignment } = useStore();
+  const { updateMenuItem, deleteMenuItem, deleteAssignment } = useStore();
+  const [realtimeEvents, setRealtimeEvents] = useState<ShishiEvent[]>(allEvents);
+
+  // Set up real-time listeners for all events
+  useEffect(() => {
+    if (!allEvents || allEvents.length === 0) return;
+
+    const unsubscribers: (() => void)[] = [];
+
+    // Listen to each event for real-time updates
+    allEvents.forEach(eventData => {
+      const eventRef = ref(database, `events/${eventData.id}`);
+      
+      const unsubscribe = onValue(eventRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const updatedEventData = snapshot.val();
+          const fullEvent: ShishiEvent = {
+            id: eventData.id,
+            ...updatedEventData
+          };
+          
+          // Update the specific event in realtimeEvents
+          setRealtimeEvents(prev => 
+            prev.map(e => e.id === eventData.id ? fullEvent : e)
+          );
+        }
+      });
+      
+      unsubscribers.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [allEvents]);
 
   const allItems = useMemo(() => {
-    if (!allEvents) return [];
-    return allEvents.flatMap(e =>
+    if (!realtimeEvents) return [];
+    return realtimeEvents.flatMap(e =>
       e.menuItems ? Object.entries(e.menuItems).map(([id, itemData]) => ({
           ...(itemData as Omit<MenuItem, 'id' | 'eventId'>),
           id,
           eventId: e.id,
       })) : []
     );
-  }, [allEvents]);
+  }, [realtimeEvents]);
+
+  // קבלת כל השיבוצים מכל האירועים
+  const allAssignments = useMemo(() => {
+    if (!realtimeEvents) return [];
+    return realtimeEvents.flatMap(e =>
+      e.assignments ? Object.entries(e.assignments).map(([id, assignmentData]) => ({
+        ...(assignmentData as Omit<Assignment, 'id'>),
+        id,
+      })) : []
+    );
+  }, [realtimeEvents]);
 
   const [editableItems, setEditableItems] = useState<EditableItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,12 +127,12 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
       if (searchTerm && !item.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
       if (filterEvent !== 'all' && item.eventId !== filterEvent) return false;
       if (filterCategory !== 'all' && item.category !== filterCategory) return false;
-      const isItemAssigned = (assignments || []).some(a => a.menuItemId === item.id);
+      const isItemAssigned = (allAssignments || []).some(a => a.menuItemId === item.id);
       if (filterAssigned === 'assigned' && !isItemAssigned) return false;
       if (filterAssigned === 'unassigned' && isItemAssigned) return false;
       return true;
     });
-  }, [editableItems, searchTerm, filterEvent, filterCategory, filterAssigned, assignments]);
+  }, [editableItems, searchTerm, filterEvent, filterCategory, filterAssigned, allAssignments]);
 
   const selectedCount = (filteredItems || []).filter(item => item.isSelected).length;
   const changedCount = (editableItems || []).filter(item => item.hasChanges).length;
@@ -94,7 +141,24 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
   const toggleSelectAll = () => { const allSelected = (filteredItems || []).every(item => item.isSelected); const filteredIds = (filteredItems || []).map(item => item.id); setEditableItems(prev => (prev || []).map(item => filteredIds.includes(item.id) ? { ...item, isSelected: !allSelected } : item)); };
   const startEditing = (itemId: string) => { setEditableItems(prev => (prev || []).map(item => item.id === itemId ? { ...item, isEditing: true } : item)); };
   const cancelEditing = (itemId: string) => { setEditableItems(prev => (prev || []).map(item => item.id === itemId ? { ...item.originalData, isEditing: false, isSelected: item.isSelected, hasChanges: false, originalData: item.originalData } : item)); };
-  const updateItemField = (itemId: string, field: keyof MenuItem, value: any) => { setEditableItems(prev => (prev || []).map(item => { if (item.id === itemId) { const updatedItem = { ...item, [field]: value }; const originalForComparison = { ...item.originalData }; const currentForComparison = { ...updatedItem }; delete (currentForComparison as any).isEditing; delete (currentForComparison as any).isSelected; delete (currentForComparison as any).hasChanges; delete (currentForComparison as any).originalData; const hasChanges = JSON.stringify(originalForComparison) !== JSON.stringify(currentForComparison); return { ...updatedItem, hasChanges }; } return item; })); };
+  const updateItemField = (itemId: string, field: keyof MenuItem, value: any) => { 
+    setEditableItems(prev => (prev || []).map(item => { 
+      if (item.id === itemId) { 
+        // Convert undefined to null for Firebase compatibility
+        const sanitizedValue = value === undefined || value === '' ? null : value;
+        const updatedItem = { ...item, [field]: sanitizedValue }; 
+        const originalForComparison = { ...item.originalData }; 
+        const currentForComparison = { ...updatedItem }; 
+        delete (currentForComparison as any).isEditing; 
+        delete (currentForComparison as any).isSelected; 
+        delete (currentForComparison as any).hasChanges; 
+        delete (currentForComparison as any).originalData; 
+        const hasChanges = JSON.stringify(originalForComparison) !== JSON.stringify(currentForComparison); 
+        return { ...updatedItem, hasChanges }; 
+      } 
+      return item; 
+    })); 
+  };
 
   // ****** FIX START ******
   const saveItem = async (itemId: string) => {
@@ -103,19 +167,24 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
 
     setIsLoading(true);
     try {
-      const updates = { name: item.name, category: item.category, quantity: item.quantity, notes: item.notes, isRequired: item.isRequired };
-      // Pass eventId to the service function
-      const success = await FirebaseService.updateMenuItem(item.eventId, item.id, updates);
+      // Sanitize updates to convert undefined/empty strings to null
+      const updates = { 
+        name: item.name, 
+        category: item.category, 
+        quantity: item.quantity, 
+        notes: item.notes === undefined || item.notes === '' ? null : item.notes, 
+        isRequired: item.isRequired 
+      };
+      // Fix: Pass eventId as first parameter for Multi-Tenant model
+      await FirebaseService.updateMenuItem(item.eventId, item.id, updates);
+      
+      // Update local store
+      updateMenuItem(itemId, updates);
+      setEditableItems(prev => prev.map(i => 
+        i.id === itemId ? { ...i, isEditing: false, hasChanges: false, originalData: { ...i, isEditing: false, hasChanges: false, isSelected: i.isSelected, originalData: i.originalData } } : i
+      ));
+      toast.success('הפריט עודכן בהצלחה');
 
-      if (success) {
-        updateMenuItem(itemId, updates);
-        setEditableItems(prev => prev.map(i => 
-          i.id === itemId ? { ...i, isEditing: false, hasChanges: false, originalData: { ...i, isEditing: false, hasChanges: false, isSelected: i.isSelected, originalData: i.originalData } } : i
-        ));
-        toast.success('הפריט עודכן בהצלחה');
-      } else {
-        throw new Error("Update failed");
-      }
     } catch (error) {
       console.error('Error saving item:', error);
       toast.error('שגיאה בשמירת הפריט');
@@ -128,29 +197,50 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
   const saveAllChanges = async () => {
     const changedItems = editableItems.filter(item => item.hasChanges);
     if (changedItems.length === 0) return;
+    
     setIsLoading(true);
     let successCount = 0;
     let errorCount = 0;
+    
+    try {
     for (const item of changedItems) {
-      const updates = { name: item.name, category: item.category, quantity: item.quantity, notes: item.notes, isRequired: item.isRequired };
-      if (await FirebaseService.updateMenuItem(item.eventId, item.id, updates)) {
-        updateMenuItem(item.id, updates);
-        successCount++;
-      } else {
-        errorCount++;
-      }
-    }
-    if (successCount > 0) {
-      setEditableItems(prev => prev.map(item => {
-        if (changedItems.some(changed => changed.id === item.id)) {
-          return { ...item, isEditing: false, hasChanges: false, originalData: { ...item, isEditing: false, hasChanges: false, isSelected: item.isSelected, originalData: item.originalData } };
+        try {
+          // Sanitize updates to convert undefined/empty strings to null
+          const updates = { 
+            name: item.name, 
+            category: item.category, 
+            quantity: item.quantity, 
+            notes: item.notes === undefined || item.notes === '' ? null : item.notes, 
+            isRequired: item.isRequired 
+          };
+          
+          await FirebaseService.updateMenuItem(item.eventId, item.id, updates);
+          updateMenuItem(item.id, updates);
+          successCount++;
+        } catch (error) {
+          console.error(`Error updating item ${item.id}:`, error);
+          errorCount++;
         }
-        return item;
-      }));
-      toast.success(`${successCount} פריטים עודכנו בהצלחה`);
+      }
+      
+      if (successCount > 0) {
+        setEditableItems(prev => prev.map(item => {
+          if (changedItems.some(changed => changed.id === item.id)) {
+            return { ...item, isEditing: false, hasChanges: false, originalData: { ...item, isEditing: false, hasChanges: false, isSelected: item.isSelected, originalData: item.originalData } };
+          }
+          return item;
+        }));
+        toast.success(`${successCount} פריטים עודכנו בהצלחה`);
+      }
+      if (errorCount > 0) {
+        toast.error(`${errorCount} פריטים נכשלו בעדכון`);
+      }
+    } catch (error) {
+      console.error('Error in saveAllChanges:', error);
+      toast.error('שגיאה כללית בשמירת השינויים');
+    } finally {
+      setIsLoading(false);
     }
-    if (errorCount > 0) toast.error(`${errorCount} פריטים נכשלו בעדכון`);
-    setIsLoading(false);
   };
   
   // ****** FIX START ******
@@ -165,91 +255,124 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
     let successCount = 0;
     let errorCount = 0;
 
-    switch (bulkAction) {
-      case 'delete':
-        if (!confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.length} פריטים? הפעולה כוללת מחיקת שיבוצים קיימים.`)) {
-          setIsLoading(false);
-          return;
-        }
-        const deletedItemIds = new Set<string>();
-        for (const item of selectedItems) {
-          try {
-            await FirebaseService.deleteMenuItem(item.eventId, item.id);
-            deletedItemIds.add(item.id);
-            successCount++;
-          } catch (error) { errorCount++; }
-        }
-        if (deletedItemIds.size > 0) {
-          setEditableItems(prev => prev.filter(item => !deletedItemIds.has(item.id)));
-        }
-        break;
-
-      case 'cancel_assignments':
-        const assignedItemsToCancel = selectedItems.filter(item => assignments.some(a => a.menuItemId === item.id));
-        if (assignedItemsToCancel.length === 0) {
-          toast.error('לא נבחרו פריטים משובצים לביטול.');
-          setIsLoading(false);
-          break;
-        }
-        if (!confirm(`האם אתה בטוח שברצונך לבטל ${assignedItemsToCancel.length} שיבוצים?`)) {
-          setIsLoading(false);
-          return;
-        }
-        for (const item of assignedItemsToCancel) {
-          const itemAssignments = assignments.filter(a => a.menuItemId === item.id);
-          for (const assignment of itemAssignments) {
-            if (await FirebaseService.cancelAssignment(item.eventId, assignment.id, item.id)) {
-              deleteAssignment(assignment.id); // This will update the local state
+    try {
+      switch (bulkAction) {
+        case 'delete':
+          if (!confirm(`האם אתה בטוח שברצונך למחוק ${selectedItems.length} פריטים? הפעולה כוללת מחיקת שיבוצים קיימים.`)) {
+            setIsLoading(false);
+            return;
+          }
+          const deletedItemIds = new Set<string>();
+          for (const item of selectedItems) {
+            try {
+              await FirebaseService.deleteMenuItem(item.eventId, item.id);
+              deletedItemIds.add(item.id);
               successCount++;
-            } else {
+            } catch (error) { errorCount++; }
+          }
+          if (deletedItemIds.size > 0) {
+            setEditableItems(prev => prev.filter(item => !deletedItemIds.has(item.id)));
+          }
+          break;
+
+        case 'cancel_assignments':
+          const assignedItemsToCancel = selectedItems.filter(item => allAssignments.some(a => a.menuItemId === item.id));
+          if (assignedItemsToCancel.length === 0) {
+            toast.error('לא נבחרו פריטים משובצים לביטול.');
+            setIsLoading(false);
+            return;
+          }
+          if (!confirm(`האם אתה בטוח שברצונך לבטל ${assignedItemsToCancel.length} שיבוצים?`)) {
+            setIsLoading(false);
+            return;
+          }
+          
+          console.log('🔄 Starting assignment cancellation for items:', assignedItemsToCancel.map(i => i.name));
+          
+          for (const item of assignedItemsToCancel) {
+            const itemAssignments = allAssignments.filter(a => a.menuItemId === item.id);
+            console.log(`📋 Found ${itemAssignments.length} assignments for item ${item.name}:`, itemAssignments);
+            
+            for (const assignment of itemAssignments) {
+              try {
+                console.log(`🗑️ Cancelling assignment ${assignment.id} for item ${item.name}`);
+                await FirebaseService.cancelAssignment(item.eventId, assignment.id, item.id);
+                
+                // Update local store - remove assignment
+                deleteAssignment(assignment.id);
+                
+                // Update the item in local state to show as unassigned
+                setEditableItems(prev => prev.map(editItem => 
+                  editItem.id === item.id 
+                    ? { ...editItem, assignedTo: undefined, assignedToName: undefined, assignedAt: undefined }
+                    : editItem
+                ));
+                
+                successCount++;
+                console.log(`✅ Successfully cancelled assignment ${assignment.id}`);
+              } catch (error) {
+                console.error(`❌ Error canceling assignment ${assignment.id}:`, error);
+                errorCount++;
+              }
+            }
+          }
+          break;
+
+        case 'category':
+          for (const item of selectedItems) {
+            try {
+              await FirebaseService.updateMenuItem(item.eventId, item.id, { category: bulkCategory });
+              updateMenuItem(item.id, { category: bulkCategory });
+              successCount++;
+            } catch (error) {
+              console.error('Error updating category:', error);
               errorCount++;
             }
           }
-        }
-        break;
-
-      case 'category':
-        for (const item of selectedItems) {
-          if (await FirebaseService.updateMenuItem(item.eventId, item.id, { category: bulkCategory })) {
-            updateMenuItem(item.id, { category: bulkCategory });
-            successCount++;
-          } else { errorCount++; }
-        }
-        break;
-      
-      case 'required':
-        for (const item of selectedItems) {
-          if (await FirebaseService.updateMenuItem(item.eventId, item.id, { isRequired: bulkRequired })) {
-            updateMenuItem(item.id, { isRequired: bulkRequired });
-            successCount++;
-          } else { errorCount++; }
-        }
-        break;
-    }
-
-    if (successCount > 0) {
-      let successMessage = '';
-      switch (bulkAction) {
-        case 'delete': successMessage = `${successCount} פריטים נמחקו בהצלחה`; break;
-        case 'category': successMessage = `קטגוריה עודכנה עבור ${successCount} פריטים`; break;
-        case 'required': successMessage = `סטטוס חובה עודכן עבור ${successCount} פריטים`; break;
-        case 'cancel_assignments': successMessage = `בוטלו שיבוצים עבור ${successCount} פריטים`; break;
+          break;
+        
+        case 'required':
+          for (const item of selectedItems) {
+            try {
+              await FirebaseService.updateMenuItem(item.eventId, item.id, { isRequired: bulkRequired });
+              updateMenuItem(item.id, { isRequired: bulkRequired });
+              successCount++;
+            } catch (error) {
+              console.error('Error updating required status:', error);
+              errorCount++;
+            }
+          }
+          break;
       }
-      toast.success(successMessage);
-    }
-    if (errorCount > 0) toast.error(`הפעולה נכשלה עבור ${errorCount} פריטים`);
 
-    setIsLoading(false);
-    setBulkAction(null);
-    setEditableItems(prev => prev.map(item => ({...item, isSelected: false})));
+      if (successCount > 0) {
+        let successMessage = '';
+        switch (bulkAction) {
+          case 'delete': successMessage = `${successCount} פריטים נמחקו בהצלחה`; break;
+          case 'category': successMessage = `קטגוריה עודכנה עבור ${successCount} פריטים`; break;
+          case 'required': successMessage = `סטטוס חובה עודכן עבור ${successCount} פריטים`; break;
+          case 'cancel_assignments': successMessage = `בוטלו שיבוצים עבור ${successCount} פריטים`; break;
+        }
+        toast.success(successMessage);
+      }
+      if (errorCount > 0) toast.error(`הפעולה נכשלה עבור ${errorCount} פריטים`);
+
+    } catch (error) {
+      console.error('Bulk action error:', error);
+      toast.error('שגיאה בביצוע הפעולה');
+    } finally {
+      setIsLoading(false);
+      setBulkAction(null);
+      setEditableItems(prev => prev.map(item => ({...item, isSelected: false})));
+    }
   };
   // ****** FIX END ******
 
   const getEventName = (eventId: string) => { 
-    const event = (allEvents || []).find(e => e.id === eventId); 
+    const event = (realtimeEvents || []).find(e => e.id === eventId); 
     return event ? event.details.title : 'אירוע לא ידוע'; 
   };
-  const getItemAssignment = (itemId: string) => { return (assignments || []).find(a => a.menuItemId === itemId); };
+  const getItemAssignment = (itemId: string) => { return (allAssignments || []).find(a => a.menuItemId === itemId); };
 
   // The JSX part remains largely the same, only logic was updated.
   // The full component code is returned below for completeness.
@@ -291,7 +414,7 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
                     <label className="block text-xs font-medium text-gray-700 mb-2">סנן לפי אירוע:</label>
                     <div className="flex flex-wrap gap-2">
                         <FilterButton label="כל האירועים" isActive={filterEvent === 'all'} onClick={() => setFilterEvent('all')} />
-                        {(allEvents || []).map(e => (
+                        {(realtimeEvents || []).map(e => (
                             <FilterButton key={e.id} label={e.details.title} isActive={filterEvent === e.id} onClick={() => setFilterEvent(e.id)} />
                         ))}
                     </div>
@@ -397,7 +520,7 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
           <div><p className="text-2xl font-bold text-gray-900">{(filteredItems || []).length}</p><p className="text-sm text-gray-600">פריטים מוצגים</p></div>
           <div><p className="text-2xl font-bold text-blue-600">{selectedCount}</p><p className="text-sm text-gray-600">נבחרו</p></div>
           <div><p className="text-2xl font-bold text-yellow-600">{changedCount}</p><p className="text-sm text-gray-600">עם שינויים</p></div>
-          <div><p className="text-2xl font-bold text-green-600">{(filteredItems || []).filter(item => (assignments || []).some(a => a.menuItemId === item.id)).length}</p><p className="text-sm text-gray-600">משובצים</p></div>
+          <div><p className="text-2xl font-bold text-green-600">{(filteredItems || []).filter(item => (allAssignments || []).some(a => a.menuItemId === item.id)).length}</p><p className="text-sm text-gray-600">משובצים</p></div>
         </div>
       </div>
     </div>
