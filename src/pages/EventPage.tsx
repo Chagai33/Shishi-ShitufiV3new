@@ -425,11 +425,40 @@ const EventPage: React.FC = () => {
                         <button onClick={handleBackToCategories} className="flex items-center text-sm font-semibold text-accent hover:underline mb-6"><ArrowRight size={16} className="ml-1" />חזור לקטגוריות</button>
                         <h2 className="text-2xl font-bold mb-6 text-neutral-800">{searchTerm ? 'תוצאות חיפוש' : selectedCategory === 'my-assignments' ? 'השיבוצים שלי' : categoryNames[selectedCategory!] }</h2>
                         {itemsToDisplay.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {itemsToDisplay.map(item => {
-                                    const assignment = assignments.find(a => a.menuItemId === item.id);
-                                    return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
-                                })}
+                            <div className="space-y-8">
+                                {/* פריטים פנויים ראשונים */}
+                                {(() => {
+                                    const availableItems = itemsToDisplay.filter(item => !assignments.some(a => a.menuItemId === item.id));
+                                    const assignedItems = itemsToDisplay.filter(item => assignments.some(a => a.menuItemId === item.id));
+                                    
+                                    return (
+                                        <>
+                                            {availableItems.length > 0 && (
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-neutral-800 mb-4">פריטים פנויים</h3>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                        {availableItems.map(item => {
+                                                            const assignment = assignments.find(a => a.menuItemId === item.id);
+                                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {assignedItems.length > 0 && (
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-neutral-800 mb-4">פריטים ששובצו</h3>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                        {assignedItems.map(item => {
+                                                            const assignment = assignments.find(a => a.menuItemId === item.id);
+                                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         ) : <p className="text-center text-neutral-500 py-8">לא נמצאו פריטים.</p>}
                     </div>
