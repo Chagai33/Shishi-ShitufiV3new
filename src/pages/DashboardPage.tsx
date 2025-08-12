@@ -104,9 +104,12 @@ const EventCard: React.FC<{
                 </div>
                 {showAdminActions && (
                     <div className="mt-4 pt-4 border-t space-y-2">
-                        <button onClick={(e) => handleActionClick(e, () => onBulkEdit(event))} className="w-full flex items-center text-left text-sm p-2 rounded-md hover:bg-neutral-200">
-                            <ListChecks size={14} className="ml-2" /> עריכה מרוכזת
-                        </button>
+                        <button 
+  onClick={(e) => handleActionClick(e, () => onBulkEdit(event))} 
+  className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200"
+>
+  <ListChecks size={14} className="inline-block ml-2" /> עריכה מרוכזת
+</button>
                         <button onClick={(e) => handleActionClick(e, () => onImport(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">ייבא פריטים</button>
                         <button onClick={(e) => handleActionClick(e, () => onManageParticipants(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">נהל משתתפים</button>
                         <button onClick={(e) => handleActionClick(e, () => onEdit(event))} className="w-full text-left text-sm p-2 rounded-md hover:bg-neutral-200">ערוך פרטי אירוע</button>
