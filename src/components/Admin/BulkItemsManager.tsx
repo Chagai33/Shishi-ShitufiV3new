@@ -1,13 +1,15 @@
 // src/components/Admin/BulkItemsManager.tsx
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ArrowRight, Edit, Trash2, Save, X, CheckSquare, Square, Search, Filter, AlertCircle, CheckCircle, RefreshCw, Slash } from 'lucide-react';
+import { ArrowRight, Edit, Trash2, Save, X, CheckSquare, Square, Search, Filter, AlertCircle, CheckCircle, RefreshCw, Slash, Plus, Upload } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { FirebaseService } from '../../services/firebaseService';
-import { MenuItem, MenuCategory, ShishiEvent } from '../../types';
+import { MenuItem, MenuCategory, ShishiEvent, Assignment } from '../../types';
 import { ref, onValue, off } from 'firebase/database';
 import { database } from '../../lib/firebase';
 import toast from 'react-hot-toast';
+import { ImportItemsModal } from './ImportItemsModal';
+import { PresetListsManager } from './PresetListsManager';
 
 interface BulkItemsManagerProps {
   onBack: () => void;
@@ -35,7 +37,7 @@ const FilterButton = ({ label, isActive, onClick }: { label: string, isActive: b
   </button>
 );
 
-export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerProps) {
+function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerProps) {
   const { updateMenuItem, deleteMenuItem, deleteAssignment } = useStore();
   const [realtimeEvents, setRealtimeEvents] = useState<ShishiEvent[]>(allEvents);
 
@@ -103,6 +105,17 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
   const [bulkAction, setBulkAction] = useState<'delete' | 'category' | 'required' | 'cancel_assignments' | null>(null);
   const [bulkCategory, setBulkCategory] = useState<MenuCategory>('main');
   const [bulkRequired, setBulkRequired] = useState(false);
+  const [editAllMode, setEditAllMode] = useState(false);
+  const [showAddItemForm, setShowAddItemForm] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showPresetManager, setShowPresetManager] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    category: 'main' as MenuCategory,
+    quantity: 1,
+    notes: '',
+    isRequired: false
+  });
 
   useEffect(() => {
     const items: EditableItem[] = (allItems || []).map(item => ({
@@ -374,6 +387,139 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
   };
   const getItemAssignment = (itemId: string) => { return (allAssignments || []).find(a => a.menuItemId === itemId); };
 
+  const toggleEditAll = () => {
+    if (editAllMode) {
+      // יציאה ממצב עריכה - ביטול כל השינויים
+      setEditableItems(prev => prev.map(item => ({
+        ...item.originalData,
+        isEditing: false,
+        isSelected: item.isSelected,
+        hasChanges: false,
+        originalData: item.originalData
+      })));
+    } else {
+      // כניסה למצב עריכה - פתיחת כל הפריטים לעריכה
+      setEditableItems(prev => prev.map(item => ({
+        ...item,
+        isEditing: true
+      })));
+    }
+    setEditAllMode(!editAllMode);
+  };
+
+  const handleAddItem = async () => {
+    if (!newItem.name.trim()) {
+      toast.error('יש להזין שם פריט');
+      return;
+    }
+
+    if (!event) {
+      toast.error('יש לבחור אירוע');
+      return;
+    }
+
+    // בדיקת כפילויות
+    const existingItem = editableItems.find(item => 
+      item.name.toLowerCase().trim() === newItem.name.toLowerCase().trim() && 
+      item.eventId === event.id
+    );
+
+    if (existingItem) {
+      if (!confirm(`פריט בשם "${newItem.name}" כבר קיים באירוע "${getEventName(event.id)}". האם להוסיף בכל זאת?`)) {
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    try {
+      const itemData = {
+        name: newItem.name.trim(),
+        category: newItem.category,
+        quantity: newItem.quantity,
+        notes: newItem.notes.trim() || undefined,
+        isRequired: newItem.isRequired,
+        createdAt: Date.now(),
+        creatorId: 'admin',
+        creatorName: 'Admin'
+      };
+
+      const itemId = await FirebaseService.addMenuItem(event.id, itemData);
+      if (itemId) {
+        toast.success('הפריט נוסף בהצלחה');
+        setShowAddItemForm(false);
+        setNewItem({
+          name: '',
+          category: 'main',
+          quantity: 1,
+          notes: '',
+          isRequired: false
+        });
+      }
+    } catch (error) {
+      console.error('Error adding item:', error);
+      toast.error('שגיאה בהוספת הפריט');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveAsPreset = async () => {
+    const selectedItems = filteredItems.filter(item => item.isSelected);
+    if (selectedItems.length === 0) {
+      toast.error('יש לבחור פריטים לשמירה');
+      return;
+    }
+
+    const listName = prompt(`הזן שם לרשימה החדשה (${selectedItems.length} פריטים):`);
+    if (!listName || !listName.trim()) {
+      toast.error('יש להזין שם לרשימה');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // נקה ערכי undefined מהפריטים
+      const presetItems = selectedItems.map(item => ({
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        notes: item.notes || undefined, // המר null ל-undefined, ואז נסיר אותו
+        isRequired: item.isRequired
+      })).map(item => {
+        // הסר שדות עם ערכי undefined
+        const cleanItem: any = { ...item };
+        if (cleanItem.notes === undefined || cleanItem.notes === null || cleanItem.notes === '') {
+          delete cleanItem.notes;
+        }
+        return cleanItem;
+      });
+
+      const listData = {
+        name: listName.trim(),
+        type: 'participants' as const,
+        items: presetItems
+      };
+
+      console.log('🧹 Cleaned preset items:', presetItems);
+      console.log('📋 Final list data:', listData);
+
+      const listId = await FirebaseService.createPresetList(listData);
+      
+      if (listId) {
+        toast.success(`רשימה "${listName.trim()}" נשמרה בהצלחה עם ${presetItems.length} פריטים`);
+        // ביטול בחירת הפריטים
+        setEditableItems(prev => prev.map(item => ({ ...item, isSelected: false })));
+      } else {
+        throw new Error('לא התקבל מזהה רשימה');
+      }
+    } catch (error: any) {
+      console.error('Error saving preset list:', error);
+      toast.error(error.message || 'שגיאה בשמירת הרשימה');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // The JSX part remains largely the same, only logic was updated.
   // The full component code is returned below for completeness.
 
@@ -396,6 +542,33 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
             <button onClick={saveAllChanges} disabled={isLoading} className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors">
               <Save className="h-4 w-4" />
               <span>שמור הכל ({changedCount})</span>
+            </button>
+          )}
+          <button 
+            onClick={toggleEditAll} 
+            className={`px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors ${
+              editAllMode 
+                ? 'bg-red-500 hover:bg-red-600 text-white' 
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+          >
+            <Edit className="h-4 w-4" />
+            <span>{editAllMode ? 'בטל עריכה' : 'ערוך הכל'}</span>
+          </button>
+          <button 
+            onClick={() => setShowAddItemForm(true)} 
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>הוסף פריט</span>
+          </button>
+          {event && (
+            <button 
+              onClick={() => setShowImportModal(true)} 
+              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 rtl:space-x-reverse transition-colors"
+            >
+              <Upload className="h-4 w-4" />
+              <span>ייבא פריטים</span>
             </button>
           )}
         </div>
@@ -457,6 +630,7 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
                   <button onClick={() => setBulkAction('category')} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 rounded-md text-xs">שנה קטגוריה</button>
                   <button onClick={() => setBulkAction('required')} className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-0.5 rounded-md text-xs">שנה חובה</button>
                   <button onClick={() => setBulkAction('delete')} className="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded-md text-xs">מחק</button>
+                  <button onClick={handleSaveAsPreset} className="bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-0.5 rounded-md text-xs">שמור כרשימה</button>
                 </>
               ) : (
                 <div className="flex items-center space-x-3 rtl:space-x-reverse">
@@ -523,6 +697,130 @@ export function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsMan
           <div><p className="text-2xl font-bold text-green-600">{(filteredItems || []).filter(item => (allAssignments || []).some(a => a.menuItemId === item.id)).length}</p><p className="text-sm text-gray-600">משובצים</p></div>
         </div>
       </div>
+
+      {/* Add Item Modal */}
+      {showAddItemForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">הוסף פריט חדש</h2>
+              <button
+                onClick={() => setShowAddItemForm(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">שם הפריט *</label>
+                  <input
+                    type="text"
+                    value={newItem.name}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="שם הפריט"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">קטגוריה</label>
+                    <select
+                      value={newItem.category}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value as MenuCategory }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      {categoryOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">כמות</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={newItem.quantity}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">הערות</label>
+                  <input
+                    type="text"
+                    value={newItem.notes}
+                    onChange={(e) => setNewItem(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="הערות נוספות..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={newItem.isRequired}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, isRequired: e.target.checked }))}
+                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="mr-2 text-sm text-gray-700">פריט חובה</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex space-x-3 rtl:space-x-reverse mt-6">
+                <button
+                  onClick={handleAddItem}
+                  disabled={!newItem.name.trim() || isLoading}
+                  className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  {isLoading ? 'מוסיף...' : 'הוסף פריט'}
+                </button>
+                <button
+                  onClick={() => setShowAddItemForm(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save as Preset Modal */}
+      {/* Preset Lists Manager Modal */}
+      {showPresetManager && (
+        <PresetListsManager
+          onClose={() => setShowPresetManager(false)}
+          onSelectList={(items) => {
+            // לא נעשה כלום כשבוחרים רשימה - זה רק למטרת שמירה
+            setShowPresetManager(false);
+            // ביטול בחירת הפריטים לאחר השמירה
+            setEditableItems(prev => prev.map(item => ({ ...item, isSelected: false })));
+            toast.success('הרשימה נשמרה בהצלחה!');
+          }}
+          selectedItemsForSave={filteredItems.filter(item => item.isSelected).map(item => ({
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity,
+            notes: item.notes,
+            isRequired: item.isRequired
+          }))}
+        />
+      )}
+
+      {/* Import Items Modal */}
+      {showImportModal && event && (
+        <ImportItemsModal
+          event={event}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
     </div>
   );
 }
+
+export { BulkItemsManager };

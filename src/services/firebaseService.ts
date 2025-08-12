@@ -652,8 +652,9 @@ export class FirebaseService {
   /**
    * יוצר רשימה מוכנה חדשה
    */
-  static async createPresetList(listData: Omit<PresetList, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<string | null> {
+  static async createPresetList(listData: { name: string; type: 'salon' | 'participants'; items: PresetItem[] }): Promise<string | null> {
     const user = auth.currentUser;
+    
     if (!user) {
       toast.error('אין הרשאה ליצור רשימה');
       return null;
@@ -661,13 +662,16 @@ export class FirebaseService {
     
     try {
       const newListRef = push(ref(database, 'presetLists'));
+      
       const fullListData = {
         ...listData,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         createdBy: user.uid
       };
+      
       await set(newListRef, fullListData);
+      
       return newListRef.key;
     } catch (error) {
       console.error('Error creating preset list:', error);

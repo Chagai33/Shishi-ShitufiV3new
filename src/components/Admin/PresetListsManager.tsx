@@ -26,6 +26,7 @@ interface PresetList {
 interface PresetListsManagerProps {
   onClose: () => void;
   onSelectList: (items: PresetItem[]) => void;
+  selectedItemsForSave?: PresetItem[];
 }
 
 const defaultSalonList: PresetItem[] = [
@@ -55,7 +56,7 @@ const defaultParticipantsList: PresetItem[] = [
   { name: 'מים', category: 'drink', quantity: 2, isRequired: true },
 ];
 
-export function PresetListsManager({ onClose, onSelectList }: PresetListsManagerProps) {
+export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave }: PresetListsManagerProps) {
   const { isAdmin } = useAuth();
   const [presetLists, setPresetLists] = useState<PresetList[]>([]);
   const [editingList, setEditingList] = useState<PresetList | null>(null);
@@ -69,7 +70,7 @@ export function PresetListsManager({ onClose, onSelectList }: PresetListsManager
     { value: 'starter', label: 'מנה ראשונה' },
     { value: 'main', label: 'מנה עיקרית' },
     { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'שתייה' },
+    { value: 'drink', label: 'משקה' },
     { value: 'other', label: 'אחר' }
   ];
 
@@ -128,24 +129,20 @@ export function PresetListsManager({ onClose, onSelectList }: PresetListsManager
       const newList = {
         name: newListName.trim(),
         type: newListType,
-        items: newListType === 'salon' ? [...defaultSalonList] : [...defaultParticipantsList]
+        items: selectedItemsForSave && selectedItemsForSave.length > 0 
+          ? selectedItemsForSave 
+          : newListType === 'salon' ? [...defaultSalonList] : [...defaultParticipantsList]
       };
 
       const listId = await FirebaseService.createPresetList(newList);
       
       if (listId) {
-        toast.success('רשימה חדשה נוצרה');
+        toast.success(`רשימה "${newListName.trim()}" נשמרה בהצלחה עם ${newList.items.length} פריטים`);
         setShowCreateForm(false);
         setNewListName('');
-        
-        // Set the new list for editing
-        const createdList: PresetList = {
-          id: listId,
-          ...newList,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        setEditingList(createdList);
+        onClose(); // סגירת המודל
+      } else {
+        throw new Error('לא התקבל מזהה רשימה מהשרת');
       }
     } catch (error: any) {
       console.error('Error creating preset list:', error);
@@ -489,13 +486,21 @@ export function PresetListsManager({ onClose, onSelectList }: PresetListsManager
         <div className="p-6">
           {/* Create New List */}
           <div className="mb-6">
+            {selectedItemsForSave && selectedItemsForSave.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h3 className="font-medium text-blue-800 mb-2">שמירת פריטים נבחרים</h3>
+                <p className="text-sm text-blue-700">
+                  {selectedItemsForSave.length} פריטים נבחרו לשמירה כרשימה מוכנה
+                </p>
+              </div>
+            )}
             {!showCreateForm ? (
               <button
                 onClick={() => setShowCreateForm(true)}
                 className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center"
               >
                 <Plus className="h-4 w-4 ml-2" />
-                צור רשימה חדשה
+                {selectedItemsForSave && selectedItemsForSave.length > 0 ? 'שמור כרשימה חדשה' : 'צור רשימה חדשה'}
               </button>
             ) : (
               <div className="bg-green-50 rounded-lg p-4">
