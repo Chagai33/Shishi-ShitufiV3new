@@ -1,7 +1,7 @@
 // src/pages/LoginPage.tsx
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { FirebaseService } from '../services/firebaseService';
@@ -15,6 +15,7 @@ const LoginPage: React.FC = () => {
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const navigate = useNavigate();
 
   const handleAuthAction = async (e: React.FormEvent) => {
@@ -26,9 +27,14 @@ const LoginPage: React.FC = () => {
         // --- לוגיקת התחברות ---
         await signInWithEmailAndPassword(auth, email, password);
         toast.success('התחברת בהצלחה!');
-        navigate('/dashboard'); // העברה לדאשבורד לאחר התחברות
+        navigate('/dashboard');
       } else {
         // --- לוגיקת הרשמה ---
+        if (!agreedToTerms) {
+          toast.error('יש לאשר את תנאי השימוש ומדיניות הפרטיות.');
+          setIsLoading(false);
+          return;
+        }
         if (!displayName.trim()) {
           toast.error('יש להזין שם להצגה');
           setIsLoading(false);
@@ -36,7 +42,6 @@ const LoginPage: React.FC = () => {
         }
         await FirebaseService.createOrganizer(email, password, displayName);
         toast.success('נרשמת בהצלחה! ברוך הבא.');
-        // לאחר הרשמה, onAuthStateChanged ב-useAuth יטפל בהעברה לדאשבורד
         navigate('/dashboard');
       }
     } catch (error: any) {
@@ -77,14 +82,6 @@ const LoginPage: React.FC = () => {
             <p className="mt-2 text-sm text-gray-600">
                 {isLoginView ? 'התחבר לחשבונך כדי לנהל אירועים' : 'צור חשבון חדש והתחל לארגן'}
             </p>
-            <a 
-                href="https://www.linkedin.com/in/chagai-yechiel/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-block mt-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-            >
-                פותח ע"י חגי יחיאל
-            </a>
         </div>
 
         <div className="bg-white p-8 shadow-lg rounded-xl">
@@ -145,11 +142,34 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
+            {!isLoginView && (
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <input
+                  id="terms-agree"
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                />
+                <label htmlFor="terms-agree" className="text-xs text-gray-600">
+                  אני מאשר/ת שקראתי והסכמתי ל
+                  <Link to="/terms" target="_blank" className="text-orange-600 hover:underline mx-1">
+                    תנאי השימוש
+                  </Link>
+                  ול
+                  <Link to="/privacy" target="_blank" className="text-orange-600 hover:underline mx-1">
+                    מדיניות הפרטיות
+                  </Link>
+                  .
+                </label>
+              </div>
+            )}
+
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-300"
+                disabled={isLoading || (!isLoginView && !agreedToTerms)}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-300 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>

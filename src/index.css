@@ -5,7 +5,11 @@
 html, body, #root {
   height: 100%;
   overflow-x: hidden;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Added base font */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  @apply bg-background text-text;
 }
 
 /* Glassmorphism Card Style for Category Selector */
@@ -55,4 +59,28 @@ html, body, #root {
 }
 .glow-other {
   background-image: radial-gradient(circle at 50% 0%, #95a5a6, transparent 70%);
+}
+
+/* Styles for legal pages (Terms, Privacy) */
+.legal-page-container {
+  @apply bg-white p-6 sm:p-8 md:p-12;
+}
+
+.prose {
+  @apply max-w-none text-neutral-700;
+}
+.prose h1 {
+  @apply text-2xl font-bold text-neutral-900 mb-4;
+}
+.prose h2 {
+  @apply text-xl font-semibold text-neutral-800 mt-6 mb-3 border-b pb-2;
+}
+.prose p, .prose ul, .prose li {
+  @apply text-base leading-relaxed;
+}
+.prose ul {
+  @apply list-disc pl-5 space-y-2;
+}
+.prose a {
+  @apply text-primary hover:underline;
 }
