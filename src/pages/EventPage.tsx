@@ -7,9 +7,11 @@ import { FirebaseService } from '../services/firebaseService';
 import { auth } from '../lib/firebase';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
-import { ShishiEvent, MenuItem as MenuItemType, Assignment as AssignmentType, Participant, MenuCategory } from '../types';
-import { Calendar, Clock, MapPin, ChefHat, User as UserIcon, AlertCircle, Edit, X, Search, ArrowRight, Plus, Trash2, MessageSquare, Hash, Upload } from 'lucide-react';
-import { isEventPast } from '../utils/dateUtils';
+import { ShishiEvent, MenuItem as MenuItemType, Assignment as AssignmentType } from '../types';
+import { Calendar, Clock, MapPin, ChefHat, User as UserIcon, AlertCircle, Edit, X, Search, ArrowRight, Trash2, MessageSquare, Hash } from 'lucide-react';
+import { isEventFinished } from '../utils/dateUtils';
+import LoadingSpinner from '../components/Common/LoadingSpinner';
+import { UserMenuItemForm } from '../components/Events/UserMenuItemForm';
 
 // Category names mapping
 const categoryNames: { [key: string]: string } = {
@@ -43,27 +45,27 @@ const CategorySelector: React.FC<{
 
   return (
     <div>
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-neutral-800">מה בא לך להביא לארוחה?</h2>
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-neutral-800">מה בא לך להביא לארוחה?</h2>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {categoriesOrder.map(categoryKey => {
           const progress = getCategoryProgress(categoryKey);
           if (progress.total === 0) return null;
           const details = categoryDetails[categoryKey];
           const percentage = progress.total > 0 ? (progress.assigned / progress.total) * 100 : 0;
           return (
-            <div key={categoryKey} onClick={() => onSelectCategory(categoryKey)} className="group relative category-card-2025 p-6 rounded-xl cursor-pointer text-center overflow-hidden">
+            <div key={categoryKey} onClick={() => onSelectCategory(categoryKey)} className="group relative category-card-2025 p-4 rounded-xl cursor-pointer text-center overflow-hidden">
               <div className={`aurora-glow ${details.glowClass}`}></div>
               <div className="relative z-10 flex flex-col items-center h-full">
-                <img src={details.icon} alt={details.name} className="w-20 h-20 mx-auto mb-3 object-contain transition-transform duration-300 group-hover:scale-110" />
-                <h3 className="text-xl font-bold text-neutral-800 mb-2">{details.name}</h3>
+                <img src={details.icon} alt={details.name} className="w-16 h-16 mx-auto mb-2 object-contain transition-transform duration-300 group-hover:scale-110" />
+                <h3 className="text-lg font-bold text-neutral-800 mb-2">{details.name}</h3>
                 <div className="flex-grow"></div>
-                <div className="w-full">
-                  <p className="text-center text-neutral-500 text-sm mb-4">{progress.assigned} / {progress.total} שובצו</p>
-                  <div className="w-full bg-neutral-200 rounded-full h-2.5">
+                <div className="w-full mt-2">
+                  <p className="text-center text-neutral-500 text-xs mb-2">{progress.assigned} / {progress.total} שובצו</p>
+                  <div className="w-full bg-neutral-200 rounded-full h-2">
                     <div 
-                      className="h-2.5 rounded-full" 
+                      className="h-2 rounded-full" 
                       style={{ 
                         width: `${percentage}%`, 
                         backgroundColor: details.color, 
@@ -165,21 +167,17 @@ const AssignmentModal: React.FC<{
         const existingParticipant = currentEvent?.participants?.[user.uid];
         
         if (existingParticipant) {
-            // המשתמש כבר רשום - הצג את השם הקיים
             setCurrentUserName(existingParticipant.name);
             setShowNameInput(false);
         } else if (user.isAnonymous) {
-            // משתמש אנונימי חדש - דרוש הזנת שם
             setShowNameInput(true);
         } else {
-            // משתמש מחובר שעדיין לא רשום לאירוע
             setCurrentUserName(user.displayName || 'משתמש');
             setShowNameInput(false);
         }
     }, [user.uid, user.isAnonymous]);
 
     const handleSubmit = async () => {
-        // בדיקת שם - אם זה משתמש חדש או בחר להשתמש בשם חדש
         if (showNameInput && !participantName.trim()) { 
             toast.error("כדי להשתבץ, יש להזין שם מלא."); 
             return; 
@@ -195,15 +193,12 @@ const AssignmentModal: React.FC<{
             let finalUserName = '';
             
             if (useNewName && participantName.trim()) {
-                // המשתמש בחר להשתמש בשם חדש
                 finalUserName = participantName.trim();
                 await FirebaseService.joinEvent(eventId, user.uid, finalUserName);
             } else if (showNameInput && participantName.trim()) {
-                // משתמש חדש שהזין שם
                 finalUserName = participantName.trim();
                 await FirebaseService.joinEvent(eventId, user.uid, finalUserName);
             } else {
-                // השתמש בשם הקיים
                 finalUserName = currentUserName;
             }
             
@@ -229,7 +224,6 @@ const AssignmentModal: React.FC<{
                 <div className="p-6">
                     <div className="bg-accent/10 p-4 rounded-lg mb-6 text-center"><p className="font-bold text-accent">{item.name}</p><p className="text-sm text-accent/80">כמות מוצעת: {item.quantity}</p></div>
                     <div className="space-y-4">
-                        {/* הצגת השם הנוכחי */}
                         {currentUserName && !showNameInput && (
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                 <div className="flex items-center justify-between">
@@ -247,7 +241,6 @@ const AssignmentModal: React.FC<{
                             </div>
                         )}
                         
-                        {/* הזנת שם חדש */}
                         {(showNameInput || useNewName) && (
                             <div>
                                 <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -316,18 +309,6 @@ const AssignmentModal: React.FC<{
     );
 };
 
-// Import the UserMenuItemForm component
-import { UserMenuItemForm } from '../components/Events/UserMenuItemForm';
-import { ImportItemsModal } from '../components/Admin/ImportItemsModal';
-
-// --- Component: LoadingSpinner ---
-const LoadingSpinner: React.FC = () => (
-    <div className="flex items-center justify-center h-screen bg-background">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-accent"></div>
-    </div>
-);
-
-// --- Component: NameModal ---
 const NameModal: React.FC<{ onSave: (name: string) => void, isLoading: boolean }> = ({ onSave, isLoading }) => {
     const [name, setName] = useState('');
     return (
@@ -351,6 +332,7 @@ const EventPage: React.FC = () => {
     const { eventId } = useParams<{ eventId: string }>();
     const [localUser, setLocalUser] = useState<FirebaseUser | null>(null);
     const [isJoining, setIsJoining] = useState(false);
+    const [isEventLoading, setIsEventLoading] = useState(true);
     
     const { currentEvent, setCurrentEvent, clearCurrentEvent, isLoading } = useStore();
     const menuItems = useStore(selectMenuItems);
@@ -360,7 +342,6 @@ const EventPage: React.FC = () => {
     const [modalState, setModalState] = useState<{ type: 'assign' | 'edit' | 'add-user-item'; item?: MenuItemType; assignment?: AssignmentType } | null>(null);
     const [itemToAssignAfterJoin, setItemToAssignAfterJoin] = useState<MenuItemType | null>(null);
     const [showNameModal, setShowNameModal] = useState(false);
-    const [showImportModal, setShowImportModal] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [view, setView] = useState<'categories' | 'items'>('categories');
@@ -372,8 +353,18 @@ const EventPage: React.FC = () => {
             else signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
         });
         if (!eventId) return;
-        const unsubEvent = FirebaseService.subscribeToEvent(eventId, setCurrentEvent);
-        return () => { unsubAuth(); unsubEvent(); clearCurrentEvent(); };
+
+        setIsEventLoading(true);
+        const unsubEvent = FirebaseService.subscribeToEvent(eventId, (eventData) => {
+            setCurrentEvent(eventData);
+            setIsEventLoading(false);
+        });
+
+        return () => { 
+            unsubAuth(); 
+            unsubEvent(); 
+            clearCurrentEvent(); 
+        };
     }, [eventId, setCurrentEvent, clearCurrentEvent]);
 
     const handleJoinEvent = useCallback(async (name: string) => {
@@ -415,105 +406,134 @@ const EventPage: React.FC = () => {
     
     const handleMyAssignmentsClick = () => { 
         if (view === 'items' && selectedCategory === 'my-assignments') {
-            // אם אנחנו כבר בתצוגת השיבוצים שלי, חזור לקטגוריות
             setView('categories');
             setSelectedCategory(null);
             setSearchTerm('');
         } else {
-            // אחרת, עבור לתצוגת השיבוצים שלי
             setSelectedCategory('my-assignments');
             setView('items');
         }
     };
     
     const itemsToDisplay = useMemo(() => {
-    // בסיס: אם אין חיפוש או קטגוריה ספציפית, הצג את כל הפריטים
-    let baseItems = menuItems;
+        let baseItems = menuItems;
+        if (searchTerm) {
+            baseItems = baseItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        }
+        if (selectedCategory === 'my-assignments' && localUser) {
+            baseItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id && a.userId === localUser.uid));
+        } else if (selectedCategory) {
+            baseItems = baseItems.filter(item => item.category === selectedCategory);
+        }
+        const assignedItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id));
+        const availableItems = baseItems.filter(item => !assignments.some(a => a.menuItemId === item.id));
+        return [...availableItems, ...assignedItems];
+    }, [searchTerm, selectedCategory, localUser, menuItems, assignments]);
 
-    // סינון לפי חיפוש אם קיים
-    if (searchTerm) {
-        baseItems = baseItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    }
-
-    // סינון לפי קטגוריה אם נבחרה
-    if (selectedCategory === 'my-assignments' && localUser) {
-        baseItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id && a.userId === localUser.uid));
-    } else if (selectedCategory) {
-        baseItems = baseItems.filter(item => item.category === selectedCategory);
-    }
-
-    // הפרדה של פריטים משובצים ולא משובצים
-    const assignedItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id));
-    const availableItems = baseItems.filter(item => !assignments.some(a => a.menuItemId === item.id));
-
-    // החזרת רשימה ממוזגת עם סדר מועדף
-    return [...availableItems, ...assignedItems];
-}, [searchTerm, selectedCategory, localUser, menuItems, assignments]);
-
-    if (isLoading || !currentEvent || !currentEvent.details || !currentEvent.organizerName) {
+    if (isLoading || isEventLoading) {
         return <LoadingSpinner />;
     }
 
+    if (!currentEvent) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-center p-4">
+          <AlertCircle size={64} className="text-error" />
+          <h1 className="mt-6 text-4xl font-bold text-neutral-800">אופס!</h1>
+          <p className="mt-2 text-lg text-neutral-600">נראה שהאירוע שחיפשת לא קיים.</p>
+          <Link
+            to="/"
+            className="mt-8 inline-block bg-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-accent/90 transition-colors"
+          >
+            חזור לדף הראשי
+          </Link>
+        </div>
+      );
+    }
+    
     const participantName = participants.find(p => p.id === localUser?.uid)?.name || 'אורח';
-    const isEventActive = currentEvent.details.isActive && !isEventPast(currentEvent.details.date, currentEvent.details.time);
-    const isOrganizer = localUser?.uid === currentEvent.organizerId;
+    const isEventActive = currentEvent.details.isActive && !isEventFinished(currentEvent.details.date, currentEvent.details.time);
 
+    if (!isEventActive) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-center p-4">
+          <AlertCircle size={64} className="text-info" />
+          <h1 className="mt-6 text-4xl font-bold text-neutral-800">האירוע אינו פעיל</h1>
+          <p className="mt-2 text-lg text-neutral-600">לא ניתן לשבץ פריטים חדשים.</p>
+          <Link
+            to="/"
+            className="mt-8 inline-block bg-accent text-white px-6 py-3 rounded-lg font-semibold hover:bg-accent/90 transition-colors"
+          >
+            חזור לדף הראשי
+          </Link>
+        </div>
+      );
+    }
+    
     return (
         <div className="min-h-screen bg-background">
-            <header className="bg-white shadow-sm p-4 text-center sticky top-0 z-40">
-                <Link to="/" className="text-accent font-bold text-xl">שישי שיתופי</Link>
-                <div className="mt-1">
-                    <a 
-                        href="https://www.linkedin.com/in/chagai-yechiel/" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        פותח ע"י חגי יחיאל
-                    </a>
-                </div>
-            </header>
-            <div className="max-w-4xl mx-auto px-4 pt-4">
-                <Link 
-                    to="/" 
-                    className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors mb-4"
-                >
-                    <ArrowRight size={16} className="ml-1" />
-                    חזור לעמוד הראשי
-                </Link>
-            </div>
-            <main className="max-w-4xl mx-auto py-8 px-4">
-                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-                    <h1 className="text-3xl font-bold text-neutral-900 mb-2">{currentEvent.details.title}</h1>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-500 mb-4">
-                        <p className="flex items-center"><Calendar size={14} className="ml-1" /> {new Date(currentEvent.details.date).toLocaleDateString('he-IL')}</p>
-                        <p className="flex items-center"><Clock size={14} className="ml-1" /> {currentEvent.details.time}</p>
-                        <p className="flex items-center"><MapPin size={14} className="ml-1" /> {currentEvent.details.location}</p>
-                        <p className="flex items-center"><UserIcon size={14} className="ml-1" /> מארגן: {currentEvent.organizerName}</p>
+            <header className="bg-white shadow-sm p-3 sticky top-0 z-40">
+                <div className="max-w-4xl mx-auto flex justify-between items-center">
+                    <div>
+                        <h1 className="font-bold text-lg text-accent">שישי שיתופי</h1>
+                        <p className="text-xs text-neutral-500">ניהול ארוחות משותפות</p>
+                    </div>
+                    <div className="text-left">
+                        <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
+                           <span className="text-sm font-medium text-neutral-700">{participantName}</span>
+                           <UserIcon size={16} className="text-neutral-500"/>
+                        </div>
+                        <a 
+                            href="https://www.linkedin.com/in/chagai-yechiel/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            פותח על ידי חגי יחיאל
+                        </a>
                     </div>
                 </div>
-                <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-                    <div className="flex items-center space-x-4 rtl:space-x-reverse">
+            </header>
+
+            <main className="max-w-4xl mx-auto py-4 px-4">
+                <div className="bg-white rounded-xl shadow-md p-4 mb-4">
+                    <div className="flex justify-between items-start mb-3">
+                        <h1 className="text-xl font-bold text-neutral-900">{currentEvent.details.title}</h1>
+                        <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full whitespace-nowrap">
+                            {assignments.length}/{menuItems.length} שובצו
+                        </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
+                        <p className="flex items-center"><Calendar size={14} className="ml-1.5 flex-shrink-0" /> {new Date(currentEvent.details.date).toLocaleDateString('he-IL')}</p>
+                        <p className="flex items-center"><Clock size={14} className="ml-1.5 flex-shrink-0" /> {currentEvent.details.time}</p>
+                        <p className="flex items-center"><MapPin size={14} className="ml-1.5 flex-shrink-0" /> {currentEvent.details.location}</p>
+                        <p className="flex items-center"><UserIcon size={14} className="ml-1.5 flex-shrink-0" /> מארגן: {currentEvent.organizerName}</p>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md p-3 mb-6">
+                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
                         <div className="flex-grow relative">
-    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
-    <input 
-        type="text" 
-        value={searchTerm} 
-        onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} 
-        placeholder="חפש פריט..." 
-        className="w-full pr-10 pl-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" 
-    />
-    {searchTerm && (
-        <button 
-            onClick={() => setSearchTerm('')} 
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="נקה חיפוש"
-        >
-            <X className="h-4 w-4" />
-        </button>
-    )}
-</div>
-                        <button onClick={handleMyAssignmentsClick} className={`px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>השיבוצים שלי</button>
+                            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                            <input 
+                                type="text" 
+                                value={searchTerm} 
+                                onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} 
+                                placeholder="חפש פריט..." 
+                                className="w-full pr-9 pl-3 py-1.5 border border-neutral-300 rounded-lg focus:ring-1 focus:ring-accent focus:border-transparent text-sm" 
+                            />
+                            {searchTerm && (
+                                <button 
+                                    onClick={() => setSearchTerm('')} 
+                                    className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    aria-label="נקה חיפוש"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
+                        <button onClick={handleMyAssignmentsClick} className={`px-3 py-1.5 text-sm font-medium rounded-lg shadow-sm transition-colors whitespace-nowrap ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>
+                            השיבוצים שלי
+                        </button>
                     </div>
                 </div>
 
@@ -521,11 +541,10 @@ const EventPage: React.FC = () => {
                     <CategorySelector menuItems={menuItems} assignments={assignments} onSelectCategory={handleCategoryClick} />
                 ) : (
                     <div>
-                        <button onClick={handleBackToCategories} className="flex items-center text-sm font-semibold text-accent hover:underline mb-6"><ArrowRight size={16} className="ml-1" />חזור לקטגוריות</button>
-                        <h2 className="text-2xl font-bold mb-6 text-neutral-800">{searchTerm ? 'תוצאות חיפוש' : selectedCategory === 'my-assignments' ? 'השיבוצים שלי' : categoryNames[selectedCategory!] }</h2>
+                        <button onClick={handleBackToCategories} className="flex items-center text-sm font-semibold text-accent hover:underline mb-4"><ArrowRight size={16} className="ml-1" />חזור לקטגוריות</button>
+                        <h2 className="text-xl font-bold mb-4 text-neutral-800">{searchTerm ? 'תוצאות חיפוש' : selectedCategory === 'my-assignments' ? 'השיבוצים שלי' : categoryNames[selectedCategory!] }</h2>
                         {itemsToDisplay.length > 0 ? (
-                            <div className="space-y-8">
-                                {/* פריטים פנויים ראשונים */}
+                            <div className="space-y-6">
                                 {(() => {
                                     const availableItems = itemsToDisplay.filter(item => !assignments.some(a => a.menuItemId === item.id));
                                     const assignedItems = itemsToDisplay.filter(item => assignments.some(a => a.menuItemId === item.id));
@@ -534,8 +553,8 @@ const EventPage: React.FC = () => {
                                         <>
                                             {availableItems.length > 0 && (
                                                 <div>
-                                                    <h3 className="text-lg font-semibold text-neutral-800 mb-4">פריטים פנויים</h3>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים פנויים</h3>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         {availableItems.map(item => {
                                                             const assignment = assignments.find(a => a.menuItemId === item.id);
                                                             return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
@@ -545,9 +564,9 @@ const EventPage: React.FC = () => {
                                             )}
                                             
                                             {assignedItems.length > 0 && (
-                                                <div>
-                                                    <h3 className="text-lg font-semibold text-neutral-800 mb-4">פריטים ששובצו</h3>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                <div className={availableItems.length > 0 ? 'pt-6 border-t' : ''}>
+                                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים ששובצו</h3>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         {assignedItems.map(item => {
                                                             const assignment = assignments.find(a => a.menuItemId === item.id);
                                                             return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
@@ -562,31 +581,25 @@ const EventPage: React.FC = () => {
                         ) : <p className="text-center text-neutral-500 py-8">לא נמצאו פריטים.</p>}
                     </div>
                 )}
-                
-           
-
              </main>
 
-            {/* --- מתחיל הקוד החדש והמעוצב --- */}
-            <div className="max-w-4xl mx-auto px-4 mt-12 mb-8">
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8 text-center">
-                    <div className="flex justify-center mb-4">
+            <div className="max-w-4xl mx-auto px-4 mt-8 mb-8">
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 text-center">
+                    <div className="flex justify-center mb-3">
                         <div className="bg-orange-100 rounded-full p-3">
-                            <ChefHat className="h-8 w-8 text-orange-500" />
+                            <ChefHat className="h-6 w-6 text-orange-500" />
                         </div>
                     </div>
-                    <h2 className="text-xl font-bold text-gray-800 mb-1">רוצה ליצור אירוע משלך?</h2>
-                    <p className="text-gray-600 mb-5">זה לוקח דקה להירשם, וזה לגמרי בחינם.</p>
+                    <h2 className="text-lg font-bold text-gray-800 mb-1">רוצה ליצור אירוע משלך?</h2>
+                    <p className="text-gray-600 text-sm mb-4">זה לוקח דקה להירשם, וזה לגמרי בחינם.</p>
                     <Link
                         to="/login"
-                        className="inline-block bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors shadow hover:shadow-md"
+                        className="inline-block bg-orange-500 text-white font-bold py-2 px-5 rounded-lg hover:bg-orange-600 transition-colors shadow hover:shadow-md text-sm"
                     >
                         הירשם עכשיו
                     </Link>
                 </div>
             </div>
-            {/* --- נגמר הקוד החדש --- */}
-
 
             {showNameModal && (<NameModal isLoading={isJoining} onSave={handleJoinEvent} />)}
             {localUser && modalState?.type === 'assign' && modalState.item && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} />)}
