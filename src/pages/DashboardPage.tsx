@@ -6,12 +6,13 @@ import { useStore } from '../store/useStore';
 import { FirebaseService } from '../services/firebaseService';
 import { ShishiEvent, EventDetails } from '../types';
 import { toast } from 'react-hot-toast';
-import { Plus, LogOut, Calendar, MapPin, Clock, Share2, Eye, Trash2, ChefHat, Home, Settings, Users, ChevronDown, ListChecks, List, ArrowRight } from 'lucide-react';
+import { Plus, LogOut, Calendar, MapPin, Clock, Share2, Eye, Trash2, ChefHat, Home, Settings, Users, ChevronDown, ListChecks, List, ArrowRight, AlertTriangle } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { ImportItemsModal } from '../components/Admin/ImportItemsModal';
 import { BulkItemsManager } from '../components/Admin/BulkItemsManager';
 import { PresetListsManager } from '../components/Admin/PresetListsManager';
+import { ConfirmationModal } from '../components/Admin/ConfirmationModal';
 
 // --- רכיב כרטיס אירוע ---
 const EventCard: React.FC<{
@@ -207,7 +208,6 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
 // --- רכיב הדאשבורד הראשי ---
 const DashboardPage: React.FC = () => {
     const { user } = useStore();
-
     const [events, setEvents] = useState<ShishiEvent[]>([]);
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -220,6 +220,10 @@ const DashboardPage: React.FC = () => {
 
     const [showPresetManager, setShowPresetManager] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
+    
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
 
     const logout = async () => {
         try {
@@ -247,6 +251,21 @@ const DashboardPage: React.FC = () => {
     useEffect(() => {
         fetchEvents();
     }, [fetchEvents]);
+    
+    const handleDeleteAccount = async () => {
+        setIsDeletingAccount(true);
+        toast.loading('מוחק את החשבון והנתונים...', { id: 'delete-toast' });
+        try {
+            await FirebaseService.deleteCurrentUserAccount();
+            toast.success('החשבון נמחק בהצלחה. תודה שהשתמשת בשירות!', { id: 'delete-toast' });
+        } catch (error: any) {
+            toast.error(error.message || 'שגיאה במחיקת החשבון.', { id: 'delete-toast' });
+        } finally {
+            setShowDeleteConfirm(false);
+            setIsDeletingAccount(false);
+        }
+    };
+
 
     const activeEvents = events.filter(event => event.details.isActive);
     const inactiveEvents = events.filter(event => !event.details.isActive);
@@ -430,6 +449,20 @@ const DashboardPage: React.FC = () => {
                         </p>
                     </div>
                 )}
+                
+                {/* --- אזור מחיקת חשבון בתחתית העמוד --- */}
+                <div className="mt-12 border-t pt-6 text-center">
+                    <button 
+                        onClick={() => setShowDeleteConfirm(true)} 
+                        className="text-sm font-medium text-red-600 hover:text-red-800 hover:underline flex items-center justify-center mx-auto"
+                    >
+                        <AlertTriangle size={16} className="ml-2" />
+                        מחק את חשבונך לצמיתות
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2">
+                        פעולה זו תמחק את כל האירועים שיצרת ואת כל הנתונים המשויכים לחשבונך.
+                    </p>
+                </div>
             </main>
 
             {showCreateModal && (
@@ -452,6 +485,21 @@ const DashboardPage: React.FC = () => {
                     }}
                 />
             )}
+            
+            {showDeleteConfirm && (
+                <ConfirmationModal
+                    message={`האם אתה בטוח שברצונך למחוק את חשבונך?\nפעולה זו הינה **בלתי הפיכה** ותמחק את כל האירועים, הפריטים והשיבוצים המשויכים לך.`}
+                    onClose={() => setShowDeleteConfirm(false)}
+                    options={[
+                        {
+                            label: isDeletingAccount ? 'מוחק...' : 'כן, מחק את החשבון',
+                            onClick: handleDeleteAccount,
+                            className: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300'
+                        }
+                    ]}
+                />
+            )}
+
 
             {showPresetManager && (
                 <PresetListsManager

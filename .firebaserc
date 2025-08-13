@@ -1,6 +1,7 @@
 {
   "projects": {
-    "shishi-shitufi": "amitayinventory"
+    "shishi-shitufi": "amitayinventory",
+    "default": "shishi-shitufimt"
   },
   "targets": {},
   "etags": {}

@@ -532,7 +532,29 @@ const EventPage: React.FC = () => {
                 )}
                 
            
-            </main>
+
+             </main>
+
+            {/* --- מתחיל הקוד החדש והמעוצב --- */}
+            <div className="max-w-4xl mx-auto px-4 mt-12 mb-8">
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8 text-center">
+                    <div className="flex justify-center mb-4">
+                        <div className="bg-orange-100 rounded-full p-3">
+                            <ChefHat className="h-8 w-8 text-orange-500" />
+                        </div>
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-800 mb-1">רוצה ליצור אירוע משלך?</h2>
+                    <p className="text-gray-600 mb-5">זה לוקח דקה להירשם, וזה לגמרי בחינם.</p>
+                    <Link
+                        to="/login"
+                        className="inline-block bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors shadow hover:shadow-md"
+                    >
+                        הירשם עכשיו
+                    </Link>
+                </div>
+            </div>
+            {/* --- נגמר הקוד החדש --- */}
+
 
             {showNameModal && (<NameModal isLoading={isJoining} onSave={handleJoinEvent} />)}
             {localUser && modalState?.type === 'assign' && modalState.item && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} />)}

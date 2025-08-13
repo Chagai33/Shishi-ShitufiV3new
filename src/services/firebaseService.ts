@@ -2,9 +2,12 @@
 
 import { ref, push, set, get, onValue, off, remove, update, query, equalTo, orderByChild } from 'firebase/database';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions'; // <-- הוספת import
 import { database, auth } from '../lib/firebase';
-import { ShishiEvent, MenuItem, Assignment, User, EventDetails, PresetList, PresetItem } from '../types'; // <--- עדכון: נוספו טיפוסים חדשים
-import { toast } from 'react-hot-toast'; // <--- עדכון: נוסף import עבור התראות
+import { ShishiEvent, MenuItem, Assignment, User, EventDetails, PresetList, PresetItem } from '../types'; 
+import { toast } from 'react-hot-toast'; 
+
+const functions = getFunctions(); // <-- אתחול שירות הפונקציות
 
 /**
  * שירות Firebase מותאם למודל שטוח (Flat Model)
@@ -90,6 +93,21 @@ export class FirebaseService {
     await set(ref(database, `users/${newUser.uid}`), userObject);
     return userObject;
   }
+  
+  /**
+   * קורא לפונקציית ענן למחיקת המשתמש וכל הנתונים שלו
+   */
+  static async deleteCurrentUserAccount(): Promise<void> {
+    const deleteUser = httpsCallable(functions, 'deleteUserAccount');
+    try {
+        const result = await deleteUser();
+        console.log('Deletion initiated:', result.data);
+    } catch (error) {
+        console.error("Error calling deleteUserAccount function:", error);
+        throw new Error('שגיאה במחיקת החשבון.');
+    }
+  }
+
 
   // ===============================
   // ניהול אירועים (Events)
