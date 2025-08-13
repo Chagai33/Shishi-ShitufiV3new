@@ -2,8 +2,11 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useStore } from '../../store/useStore';
 
 export function Footer() {
+  const toggleDeleteAccountModal = useStore(state => state.toggleDeleteAccountModal);
+
   return (
     <footer className="bg-neutral-100 border-t border-neutral-200 mt-auto py-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-neutral-500">
@@ -15,6 +18,13 @@ export function Footer() {
           <Link to="/privacy" className="hover:text-neutral-700 transition-colors">
             מדיניות פרטיות
           </Link>
+          <span>|</span>
+          <button
+            onClick={toggleDeleteAccountModal}
+            className="text-error hover:text-error/80 transition-colors font-medium"
+          >
+            מחק חשבון
+          </button>
         </div>
         <div className="mt-2">
           <p>

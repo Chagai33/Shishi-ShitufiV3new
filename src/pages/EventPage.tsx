@@ -427,11 +427,28 @@ const EventPage: React.FC = () => {
     };
     
     const itemsToDisplay = useMemo(() => {
-        if (searchTerm) return menuItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        if (selectedCategory === 'my-assignments' && localUser) return menuItems.filter(item => assignments.some(a => a.menuItemId === item.id && a.userId === localUser.uid));
-        if (selectedCategory) return menuItems.filter(item => item.category === selectedCategory);
-        return [];
-    }, [searchTerm, selectedCategory, localUser, menuItems, assignments]);
+    // בסיס: אם אין חיפוש או קטגוריה ספציפית, הצג את כל הפריטים
+    let baseItems = menuItems;
+
+    // סינון לפי חיפוש אם קיים
+    if (searchTerm) {
+        baseItems = baseItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+
+    // סינון לפי קטגוריה אם נבחרה
+    if (selectedCategory === 'my-assignments' && localUser) {
+        baseItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id && a.userId === localUser.uid));
+    } else if (selectedCategory) {
+        baseItems = baseItems.filter(item => item.category === selectedCategory);
+    }
+
+    // הפרדה של פריטים משובצים ולא משובצים
+    const assignedItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id));
+    const availableItems = baseItems.filter(item => !assignments.some(a => a.menuItemId === item.id));
+
+    // החזרת רשימה ממוזגת עם סדר מועדף
+    return [...availableItems, ...assignedItems];
+}, [searchTerm, selectedCategory, localUser, menuItems, assignments]);
 
     if (isLoading || !currentEvent || !currentEvent.details || !currentEvent.organizerName) {
         return <LoadingSpinner />;
@@ -478,9 +495,24 @@ const EventPage: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-md p-6 mb-8">
                     <div className="flex items-center space-x-4 rtl:space-x-reverse">
                         <div className="flex-grow relative">
-                            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                            <input type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} placeholder="חפש פריט..." className="w-full pr-10 pl-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" />
-                        </div>
+    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
+    <input 
+        type="text" 
+        value={searchTerm} 
+        onChange={(e) => { setSearchTerm(e.target.value); setView('items'); setSelectedCategory(null); }} 
+        placeholder="חפש פריט..." 
+        className="w-full pr-10 pl-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" 
+    />
+    {searchTerm && (
+        <button 
+            onClick={() => setSearchTerm('')} 
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="נקה חיפוש"
+        >
+            <X className="h-4 w-4" />
+        </button>
+    )}
+</div>
                         <button onClick={handleMyAssignmentsClick} className={`px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors ${selectedCategory === 'my-assignments' ? 'bg-accent text-white' : 'bg-primary text-white hover:bg-primary/90'}`}>השיבוצים שלי</button>
                     </div>
                 </div>

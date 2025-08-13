@@ -205,9 +205,10 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
     );
 };
 
+
 // --- רכיב הדאשבורד הראשי ---
 const DashboardPage: React.FC = () => {
-    const { user } = useStore();
+    const { user, isDeleteAccountModalOpen, toggleDeleteAccountModal } = useStore();
     const [events, setEvents] = useState<ShishiEvent[]>([]);
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -221,7 +222,8 @@ const DashboardPage: React.FC = () => {
     const [showPresetManager, setShowPresetManager] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
     
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    // בצע מחיקה של המצב המקומי
+    // const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
 
@@ -261,7 +263,7 @@ const DashboardPage: React.FC = () => {
         } catch (error: any) {
             toast.error(error.message || 'שגיאה במחיקת החשבון.', { id: 'delete-toast' });
         } finally {
-            setShowDeleteConfirm(false);
+            toggleDeleteAccountModal(); // סגירת המודל באמצעות הפונקציה הגלובלית
             setIsDeletingAccount(false);
         }
     };
@@ -449,20 +451,6 @@ const DashboardPage: React.FC = () => {
                         </p>
                     </div>
                 )}
-                
-                {/* --- אזור מחיקת חשבון בתחתית העמוד --- */}
-                <div className="mt-12 border-t pt-6 text-center">
-                    <button 
-                        onClick={() => setShowDeleteConfirm(true)} 
-                        className="text-sm font-medium text-red-600 hover:text-red-800 hover:underline flex items-center justify-center mx-auto"
-                    >
-                        <AlertTriangle size={16} className="ml-2" />
-                        מחק את חשבונך לצמיתות
-                    </button>
-                    <p className="text-xs text-gray-500 mt-2">
-                        פעולה זו תמחק את כל האירועים שיצרת ואת כל הנתונים המשויכים לחשבונך.
-                    </p>
-                </div>
             </main>
 
             {showCreateModal && (
@@ -486,10 +474,10 @@ const DashboardPage: React.FC = () => {
                 />
             )}
             
-            {showDeleteConfirm && (
+            {isDeleteAccountModalOpen && (
                 <ConfirmationModal
                     message={`האם אתה בטוח שברצונך למחוק את חשבונך?\nפעולה זו הינה **בלתי הפיכה** ותמחק את כל האירועים, הפריטים והשיבוצים המשויכים לך.`}
-                    onClose={() => setShowDeleteConfirm(false)}
+                    onClose={toggleDeleteAccountModal}
                     options={[
                         {
                             label: isDeletingAccount ? 'מוחק...' : 'כן, מחק את החשבון',

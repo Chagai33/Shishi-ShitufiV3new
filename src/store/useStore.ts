@@ -8,12 +8,14 @@ interface AppState {
   user: User | null; // המשתמש המחובר (מארגן או אורח אנונימי)
   currentEvent: ShishiEvent | null; // האירוע הספציפי שבו המשתמש צופה כרגע
   isLoading: boolean;
+  isDeleteAccountModalOpen: boolean; // מצב חדש למודל מחיקת החשבון
 
   // פעולות לעדכון המצב
   setUser: (user: User | null) => void;
   setCurrentEvent: (event: ShishiEvent | null) => void;
   setLoading: (loading: boolean) => void;
   clearCurrentEvent: () => void;
+  toggleDeleteAccountModal: () => void; // פעולה חדשה לניהול המודל
 
   // פעולות לעדכון נתונים בתוך האירוע הנוכחי
   updateMenuItem: (itemId: string, updates: Partial<MenuItem>) => void;
@@ -33,6 +35,7 @@ export const useStore = create<AppState>((set, get) => ({
   user: null,
   currentEvent: null,
   isLoading: true, // מתחילים במצב טעינה
+  isDeleteAccountModalOpen: false, // מצב התחלתי סגור
 
   // הגדרת הפעולות הבסיסיות
   setUser: (user) => set({ user }),
@@ -44,6 +47,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   // פעולה לניקוי נתוני האירוע הנוכחי בעת יציאה מהעמוד
   clearCurrentEvent: () => set({ currentEvent: null }),
+  
+  // פעולה חדשה לניהול מצב המודל
+  toggleDeleteAccountModal: () => set((state) => ({ isDeleteAccountModalOpen: !state.isDeleteAccountModalOpen })),
+
 
   // ===============================
   // פעולות לעדכון פריטי תפריט
