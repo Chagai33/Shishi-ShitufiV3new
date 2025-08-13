@@ -9,13 +9,12 @@
     "logs": "firebase functions:log"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^11.0.1",
-    "firebase-functions": "^4.0.1",
-    "vite-react-typescript-starter": "file:.."
+    "firebase-functions": "^4.0.1"
   },
   "devDependencies": {
     "firebase-functions-test": "^0.2.0"
