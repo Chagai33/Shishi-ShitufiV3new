@@ -16,7 +16,7 @@ const TermsPage: React.FC = () => (
       </Link>
       
       <h1 className="text-3xl font-bold mb-4">תנאי שימוש לאפליקציית "שישי שיתופי"</h1>
-      <p className="text-sm text-neutral-500 mb-6">תאריך עדכון אחרון: 13 באוגוסט 2025</p>
+      <p className="text-sm text-neutral-500 mb-6">תאריך עדכון אחרון: 14 באוגוסט 2025</p>
 
       <div className="prose">
         <p>ברוכים הבאים ל"שישי שיתופי" (להלן: "<strong>האפליקציה</strong>" או "<strong>השירות</strong>"). השימוש באפליקציה, שירותיה ותכניה כפוף לתנאים המפורטים להלן ("<strong>תנאי השימוש</strong>"). אנא קרא אותם בעיון. שימושך באפליקציה, בכל דרך שהיא, מהווה הסכמה בלתי מסויגת לתנאים אלו. אם אינך מסכים לתנאי השימוש, כולם או חלקם, אינך רשאי לעשות שימוש באפליקציה.</p>
@@ -57,7 +57,7 @@ const TermsPage: React.FC = () => (
         <p>על תנאי שימוש אלו יחולו דיני מדינת ישראל. סמכות השיפוט הבלעדית בכל סכסוך תהא נתונה לבתי המשפט המוסמכים במחוז תל אביב-יפו.</p>
 
         <h2>9. יצירת קשר</h2>
-        <p>בכל שאלה, ניתן ליצור קשר עם מפתח האפליקציה באמצעות פרופיל הלינקדאין שלו, הזמין דרך קישור באפליקציה.</p>
+        <p>בכל שאלה בנוגע לתנאי שימוש אלו, ניתן ליצור עמנו קשר באמצעות <a href="https://docs.google.com/forms/d/e/1FAIpQLScliYWHohU4JSq1Xm3d_0auBCetq4BgoDp0vc7M9SCbIT6cbw/viewform" target="_blank" rel="noopener noreferrer">טופס יצירת הקשר</a>.</p>
 
         <hr className="my-8" />
         
@@ -100,7 +100,7 @@ const TermsPage: React.FC = () => (
           <p>These Terms of Use shall be governed by the laws of the State of Israel. The competent courts in the Tel Aviv-Jaffa district shall have exclusive jurisdiction in any dispute.</p>
 
           <h2>9. Contact</h2>
-          <p>For any questions, you can contact the application developer via his LinkedIn profile, available through a link in the Application.</p>
+          <p>For any questions regarding these Terms of Use, you can contact us using our <a href="https://docs.google.com/forms/d/e/1FAIpQLScliYWHohU4JSq1Xm3d_0auBCetq4BgoDp0vc7M9SCbIT6cbw/viewform" target="_blank" rel="noopener noreferrer">contact form</a>.</p>
         </div>
       </div>
     </div>

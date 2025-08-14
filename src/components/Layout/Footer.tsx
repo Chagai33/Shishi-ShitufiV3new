@@ -22,7 +22,7 @@ export function Footer() {
            <span>|</span>
           {/* כפתור "משוב" שמוצג תמיד */}
           <button
-            onClick={() => window.open('https://docs.google.com/forms/d/1QWyqNiFCyht4xYdYaMpfUQwhf9JICWNBMeNf5P0PYsY/preview', '_blank')}
+            onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSfoHsGWZj4ehj8YHwEQ2gpME5LAEtGRv8iuxkV7ioFIEw1AhA/viewform?usp=header', '_blank')}
             className="text-neutral-500 hover:text-neutral-700 transition-colors font-medium"
           >
             משוב
