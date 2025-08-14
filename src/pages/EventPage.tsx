@@ -13,6 +13,7 @@ import { isEventFinished } from '../utils/dateUtils';
 import LoadingSpinner from '../components/Common/LoadingSpinner';
 import { UserMenuItemForm } from '../components/Events/UserMenuItemForm';
 
+
 // Category names mapping
 const categoryNames: { [key: string]: string } = {
     starter: 'מנה ראשונה',
@@ -309,7 +310,7 @@ const AssignmentModal: React.FC<{
     );
 };
 
-const NameModal: React.FC<{ onSave: (name: string) => void, isLoading: boolean }> = ({ onSave, isLoading }) => {
+const NameModal: React.FC<{ onSave: (name: string) => void, isLoading: boolean, onClose: () => void }> = ({ onSave, isLoading, onClose }) => {
     const [name, setName] = useState('');
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
@@ -318,9 +319,14 @@ const NameModal: React.FC<{ onSave: (name: string) => void, isLoading: boolean }
                     <h2 className="text-xl font-bold text-neutral-900 mb-2">ברוכים הבאים!</h2>
                     <p className="text-neutral-600 mb-4">כדי להשתתף באירוע, אנא הזן את שמך.</p>
                     <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="השם שלך" className="w-full p-2 border border-neutral-300 rounded-lg mb-4 focus:ring-2 focus:ring-accent focus:border-transparent" />
-                    <button onClick={() => onSave(name)} disabled={!name.trim() || isLoading} className="w-full bg-accent text-white py-2 rounded-lg hover:bg-accent/90 disabled:bg-neutral-300">
-                        {isLoading ? 'שומר...' : 'הצטרף לאירוע'}
-                    </button>
+                    <div className="flex space-x-3 rtl:space-x-reverse mt-6">
+                        <button type="button" onClick={onClose} disabled={isLoading} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50">
+                            ביטול
+                        </button>
+                        <button onClick={() => onSave(name)} disabled={!name.trim() || isLoading} className="flex-1 bg-accent text-white py-2 rounded-lg hover:bg-accent/90 disabled:bg-neutral-300">
+                            {isLoading ? 'שומר...' : 'הצטרף לאירוע'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -613,7 +619,9 @@ const EventPage: React.FC = () => {
                 </div>
             </div>
 
-            {showNameModal && (<NameModal isLoading={isJoining} onSave={handleJoinEvent} />)}
+            {showNameModal && (<NameModal isLoading={isJoining} onSave={handleJoinEvent} onClose={() => setShowNameModal(false)} />)}
+
+
             {localUser && modalState?.type === 'assign' && modalState.item && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} />)}
             {localUser && modalState?.type === 'edit' && modalState.item && modalState.assignment && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} isEdit={true} existingAssignment={modalState.assignment} />)}
             {modalState?.type === 'add-user-item' && currentEvent && (

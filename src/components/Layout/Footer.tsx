@@ -1,11 +1,12 @@
-// src/components/Layout/Footer.tsx
-
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 
 export function Footer() {
   const toggleDeleteAccountModal = useStore(state => state.toggleDeleteAccountModal);
+  
+  // הוספת קריאה למצב המשתמש
+  const { user } = useStore();
+  const isRegisteredUser = user && user.email;
 
   return (
     <footer className="bg-neutral-100 border-t border-neutral-200 mt-auto py-4">
@@ -18,13 +19,28 @@ export function Footer() {
           <Link to="/privacy" className="hover:text-neutral-700 transition-colors">
             מדיניות פרטיות
           </Link>
-          <span>|</span>
+           <span>|</span>
+          {/* כפתור "משוב" שמוצג תמיד */}
           <button
-            onClick={toggleDeleteAccountModal}
-            className="text-error hover:text-error/80 transition-colors font-medium"
+            onClick={() => window.open('https://docs.google.com/forms/d/1QWyqNiFCyht4xYdYaMpfUQwhf9JICWNBMeNf5P0PYsY/preview', '_blank')}
+            className="text-neutral-500 hover:text-neutral-700 transition-colors font-medium"
           >
-            מחק חשבון
+            משוב
           </button>
+          {/* הוספת תנאי להצגת הכפתור */}
+          {isRegisteredUser && (
+            <>
+              <span>|</span>
+              <button
+                onClick={toggleDeleteAccountModal}
+                className="text-error hover:text-error/80 transition-colors font-medium"
+              >
+                מחק חשבון
+              </button>
+              
+            </>
+          )}
+
         </div>
         <div className="mt-2">
           <p>

@@ -254,19 +254,7 @@ const DashboardPage: React.FC = () => {
         fetchEvents();
     }, [fetchEvents]);
     
-    const handleDeleteAccount = async () => {
-        setIsDeletingAccount(true);
-        toast.loading('מוחק את החשבון והנתונים...', { id: 'delete-toast' });
-        try {
-            await FirebaseService.deleteCurrentUserAccount();
-            toast.success('החשבון נמחק בהצלחה. תודה שהשתמשת בשירות!', { id: 'delete-toast' });
-        } catch (error: any) {
-            toast.error(error.message || 'שגיאה במחיקת החשבון.', { id: 'delete-toast' });
-        } finally {
-            toggleDeleteAccountModal(); // סגירת המודל באמצעות הפונקציה הגלובלית
-            setIsDeletingAccount(false);
-        }
-    };
+    
 
 
     const activeEvents = events.filter(event => event.details.isActive);
@@ -474,19 +462,7 @@ const DashboardPage: React.FC = () => {
                 />
             )}
             
-            {isDeleteAccountModalOpen && (
-                <ConfirmationModal
-                    message={`האם אתה בטוח שברצונך למחוק את חשבונך?\nפעולה זו הינה **בלתי הפיכה** ותמחק את כל האירועים, הפריטים והשיבוצים המשויכים לך.`}
-                    onClose={toggleDeleteAccountModal}
-                    options={[
-                        {
-                            label: isDeletingAccount ? 'מוחק...' : 'כן, מחק את החשבון',
-                            onClick: handleDeleteAccount,
-                            className: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300'
-                        }
-                    ]}
-                />
-            )}
+        
 
 
             {showPresetManager && (
