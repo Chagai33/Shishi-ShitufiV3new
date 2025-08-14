@@ -538,58 +538,61 @@ const EventPage: React.FC = () => {
                 </div>
 
                 {view === 'categories' ? (
-                    <CategorySelector menuItems={menuItems} assignments={assignments} onSelectCategory={handleCategoryClick} />
-                ) : (
-                    <div>
-                        <button onClick={handleBackToCategories} className="flex items-center text-sm font-semibold text-accent hover:underline mb-4"><ArrowRight size={16} className="ml-1" />חזור לקטגוריות</button>
-                        <h2 className="text-xl font-bold mb-4 text-neutral-800">{searchTerm ? 'תוצאות חיפוש' : selectedCategory === 'my-assignments' ? 'השיבוצים שלי' : categoryNames[selectedCategory!] }</h2>
-                        {itemsToDisplay.length > 0 ? (
-                            <div className="space-y-6">
-                                {(() => {
-                                    const availableItems = itemsToDisplay.filter(item => !assignments.some(a => a.menuItemId === item.id));
-                                    const assignedItems = itemsToDisplay.filter(item => assignments.some(a => a.menuItemId === item.id));
-                                    
-                                    return (
-                                        <>
-                                            {availableItems.length > 0 && (
-                                                <div>
-                                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים פנויים</h3>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {availableItems.map(item => {
-                                                            const assignment = assignments.find(a => a.menuItemId === item.id);
-                                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            
-                                            {assignedItems.length > 0 && (
-                                                <div className={availableItems.length > 0 ? 'pt-6 border-t' : ''}>
-                                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים ששובצו</h3>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {assignedItems.map(item => {
-                                                            const assignment = assignments.find(a => a.menuItemId === item.id);
-                                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    );
-                                })()}
-                            </div>
-                        ) : <p className="text-center text-neutral-500 py-8">לא נמצאו פריטים.</p>}
-                    </div>
-                )}
-             </main>
-             <div className="max-w-4xl mx-auto px-4 mt-8">
-    <div className="flex justify-center">
-        <button onClick={() => setModalState({ type: 'add-user-item' })} className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center">
-            <Plus size={22} className="inline-block ml-2" />
-            הוסף פריט משלך
-        </button>
+    <>
+        <CategorySelector menuItems={menuItems} assignments={assignments} onSelectCategory={handleCategoryClick} />
+        <div className="max-w-4xl mx-auto px-4 mt-8">
+            <div className="flex justify-center">
+                <button onClick={() => setModalState({ type: 'add-user-item' })} className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center">
+    <Plus size={22} className="inline-block ml-2" />
+    הוסף פריט משלך
+</button>
+            </div>
+        </div>
+    </>
+) : (
+    <div>
+        <button onClick={handleBackToCategories} className="flex items-center text-sm font-semibold text-accent hover:underline mb-4"><ArrowRight size={16} className="ml-1" />חזור לקטגוריות</button>
+        <h2 className="text-xl font-bold mb-4 text-neutral-800">{searchTerm ? 'תוצאות חיפוש' : selectedCategory === 'my-assignments' ? 'השיבוצים שלי' : categoryNames[selectedCategory!] }</h2>
+        {itemsToDisplay.length > 0 ? (
+            <div className="space-y-6">
+                {(() => {
+                    const availableItems = itemsToDisplay.filter(item => !assignments.some(a => a.menuItemId === item.id));
+                    const assignedItems = itemsToDisplay.filter(item => assignments.some(a => a.menuItemId === item.id));
+                    
+                    return (
+                        <>
+                            {availableItems.length > 0 && (
+                                <div>
+                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים פנויים</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {availableItems.map(item => {
+                                            const assignment = assignments.find(a => a.menuItemId === item.id);
+                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {assignedItems.length > 0 && (
+                                <div className={availableItems.length > 0 ? 'pt-6 border-t' : ''}>
+                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים ששובצו</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {assignedItems.map(item => {
+                                            const assignment = assignments.find(a => a.menuItemId === item.id);
+                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    );
+                })()}
+            </div>
+        ) : <p className="text-center text-neutral-500 py-8">לא נמצאו פריטים.</p>}
     </div>
-</div>
+)}
+             </main>
+             
             
 
             <div className="max-w-4xl mx-auto px-4 mt-8 mb-8">
