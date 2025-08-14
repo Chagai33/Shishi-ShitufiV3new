@@ -1,7 +1,6 @@
 // src/App.tsx
 
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
 import { useStore } from './store/useStore';
 
@@ -16,7 +15,22 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import { ConfirmationModal } from './components/Admin/ConfirmationModal'; // <-- ייבוא המודאל
 import React, { useState } from 'react';
+import { Toaster, toast } from 'react-hot-toast'; // <--- שינוי כאן
+import { FirebaseService } from './services/firebaseService';
 
+
+
+
+
+/*************  ✨ Windsurf Command ⭐  *************/
+/**
+ * הקומפוננטה הראשית של האפליקציה, האחראית על הראוטינג ועל הצגה של המודאל למחיקת חשבון.
+ * 
+ * הקומפוננטה מקבלת את המצב הנוכחי של האותנטיקציה ואת המצב הנוכחי של המודאל למחיקת חשבון מה-Store.
+ * היא מציגה את הראוטינג לעמודים השונים באפליקציה, ומציגה את המודאל למחיקת חשבון אם הוא פתוח.
+ * היא גם מטפלת בלוגיקה של מחיקת החשבון והנתונים המשויכים אליו.
+ */
+/*******  082bce00-3db0-46d3-ab25-193bdca2e3fe  *******/
 function App() {
   const { isLoading: isAuthLoading } = useAuth();
   const { user, isDeleteAccountModalOpen, toggleDeleteAccountModal } = useStore(); // <-- קריאה למצב ולפונקציה
