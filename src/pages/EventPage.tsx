@@ -8,7 +8,7 @@ import { auth } from '../lib/firebase';
 import { signInAnonymously, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { ShishiEvent, MenuItem as MenuItemType, Assignment as AssignmentType } from '../types';
-import { Calendar, Clock, MapPin, ChefHat, User as UserIcon, AlertCircle, Edit, X, Search, ArrowRight, Trash2, MessageSquare, Hash } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChefHat, User as UserIcon, AlertCircle, Edit, X, Search, ArrowRight, Trash2, MessageSquare, Hash, Plus } from 'lucide-react';
 import { isEventFinished } from '../utils/dateUtils';
 import LoadingSpinner from '../components/Common/LoadingSpinner';
 import { UserMenuItemForm } from '../components/Events/UserMenuItemForm';
@@ -582,6 +582,15 @@ const EventPage: React.FC = () => {
                     </div>
                 )}
              </main>
+             <div className="max-w-4xl mx-auto px-4 mt-8">
+    <div className="flex justify-center">
+        <button onClick={() => setModalState({ type: 'add-user-item' })} className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center">
+            <Plus size={22} className="inline-block ml-2" />
+            הוסף פריט משלך
+        </button>
+    </div>
+</div>
+            
 
             <div className="max-w-4xl mx-auto px-4 mt-8 mb-8">
                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 text-center">
