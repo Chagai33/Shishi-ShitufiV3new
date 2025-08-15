@@ -14,6 +14,7 @@ import LoadingSpinner from '../components/Common/LoadingSpinner';
 import { UserMenuItemForm } from '../components/Events/UserMenuItemForm';
 
 
+
 // Category names mapping
 const categoryNames: { [key: string]: string } = {
     starter: 'מנה ראשונה',
@@ -485,11 +486,19 @@ const EventPage: React.FC = () => {
                     </div>
                     <div className="text-left">
                         <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-                           <span className="text-sm font-medium text-neutral-700">{participantName}</span>
+                           {localUser && !localUser.isAnonymous ? (
+                                <Link to="/dashboard" className="text-sm font-medium text-accent hover:underline">
+                                    {participantName}
+                                </Link>
+                           ) : (
+                                <a href="/login" className="text-sm font-medium text-accent hover:underline">
+                                    {participantName}
+                                </a>
+                           )}
                            <UserIcon size={16} className="text-neutral-500"/>
                         </div>
                         <a 
-                            href="https://www.linkedin.com/in/chagai-yechiel/" 
+                            href="https://www.linkedin.com/in/chagai-yechiel/"  
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
