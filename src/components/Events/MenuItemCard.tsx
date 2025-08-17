@@ -73,9 +73,9 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   ערוך
                 </button>
                 <button onClick={onCancel} className="flex-1 text-xs bg-red-100 text-red-700 hover:bg-red-200 py-1 rounded flex items-center justify-center">
-                  <Trash2 size={12} className="ml-1" />
-                  בטל שיבוץ
-                </button>
+  <Trash2 size={12} className="ml-1" />
+  {isMyAssignment && item.creatorId === assignment?.userId ? 'מחק פריט' : 'בטל שיבוץ'}
+</button>
               </div>
             )}
           </div>

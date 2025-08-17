@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 interface UserMenuItemFormProps {
   event: ShishiEvent;
   onClose: () => void;
+  category?: MenuCategory;
   availableCategories?: string[];
 }
 
@@ -19,17 +20,17 @@ interface FormErrors {
   quantity?: string;
 }
 
-export function UserMenuItemForm({ event, onClose, availableCategories }: UserMenuItemFormProps) {
-  const { user: authUser } = useAuth();
+export function UserMenuItemForm({ event, onClose, category, availableCategories }: UserMenuItemFormProps) {
+  const { user: authUser } = useAuth(); // <-- השורה שהוחזרה
   const { addMenuItem } = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [participantName, setParticipantName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: '',
-    category: 'main' as MenuCategory,
+    category: category || ('main' as MenuCategory),
     quantity: 1,
     notes: '',
   });
@@ -38,7 +39,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
     { value: 'starter', label: 'מנה ראשונה' },
     { value: 'main', label: 'מנה עיקרית' },
     { value: 'dessert', label: 'קינוח' },
-    { value: 'drink', label: 'שתייה' },  
+    { value: 'drink', label: 'שתייה' },
     { value: 'equipment', label: 'ציוד כללי' },
     { value: 'other', label: 'אחר' }
   ];
@@ -48,7 +49,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
     console.log('👤 Current authUser:', authUser);
     console.log('📅 Current event:', event);
     console.log('👥 Event participants:', event.participants);
-    
+
     if (authUser?.isAnonymous) {
       const participants = event.participants || {};
       const isParticipant = !!participants[authUser.uid];
@@ -79,7 +80,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
 
     console.log('📋 Form data:', formData);
     console.log('❌ Validation errors:', newErrors);
-    
+
     setErrors(newErrors);
     const isValid = Object.keys(newErrors).length === 0;
     console.log('✅ Form is valid:', isValid);
@@ -89,7 +90,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     console.group('📝 UserMenuItemForm.handleSubmit');
     console.log('👤 Current user:', authUser);
     console.log('📋 Form data:', formData);
@@ -100,7 +101,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
       organizerId: event.organizerId,
       title: event.details?.title
     });
-    
+
     if (!authUser) {
       console.error('❌ No authenticated user');
       toast.error('יש להתחבר כדי להוסיף פריט');
@@ -128,16 +129,14 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
 
     try {
       let finalUserName = participantName.trim();
-      
-      // אם המשתמש הזין שם, רשום אותו כמשתתף באירוע
+
       if (showNameInput && finalUserName) {
         console.log('👥 Joining event with name:', finalUserName);
-        console.log('🔗 Event path for joining:', `organizerEvents/${event.organizerId}/events/${event.id}/participants/${authUser.uid}`);
-        
-        await FirebaseService.joinEvent(event.organizerId, event.id, authUser.uid, finalUserName);
+        console.log('🔗 Event path for joining:', `events/${event.id}/participants/${authUser.uid}`);
+
+        await FirebaseService.joinEvent(event.id, authUser.uid, finalUserName);
         console.log('✅ Successfully joined event');
       } else {
-        // אם הוא כבר משתתף, קח את השם הקיים שלו
         const existingParticipant = event.participants?.[authUser.uid];
         finalUserName = existingParticipant?.name || authUser.displayName || 'אורח';
         console.log('👤 Using existing name:', finalUserName);
@@ -154,27 +153,24 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
         creatorId: authUser.uid,
         creatorName: finalUserName
       };
-      
-      // הסר שדה notes אם הוא ריק
+
       if (!newItemData.notes) {
         delete (newItemData as any).notes;
       }
-      
+
       console.log('📋 New item data:', newItemData);
       console.log('🔗 Firebase path for item:', `events/${event.id}/menuItems`);
-      
+
       console.log('🎯 Adding item with self-assignment...');
-      // הוספת פריט עם שיבוץ אוטומטי
       const itemId = await FirebaseService.addMenuItemAndAssign(
         event.id,
         newItemData,
         authUser.uid,
         finalUserName
       );
-      
+
       if (itemId) {
         console.log('✅ Item added and assigned successfully, ID:', itemId);
-        // הוספה לסטור המקומי
         addMenuItem({ ...newItemData, id: itemId });
         toast.success('הפריט נוסף ושובץ בהצלחה!');
       } else {
@@ -192,15 +188,14 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
         code: error.code,
         stack: error.stack
       });
-      
-      // הצגת שגיאה מפורטת יותר
+
       let errorMessage = 'שגיאה בהוספת הפריט';
       if (error.code === 'PERMISSION_DENIED') {
         errorMessage = 'אין הרשאה להוסיף פריט. בדוק את הגדרות Firebase';
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast.error(errorMessage);
       console.groupEnd();
     } finally {
@@ -211,8 +206,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
   const handleInputChange = (field: keyof typeof formData, value: any) => {
     console.log(`📝 Input changed: ${field} = ${value}`);
     setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error when user starts typing
+
     if (errors[field as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -229,7 +223,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-lg font-semibold text-gray-900">הוסף פריט משלך</h2>
           <button
@@ -240,10 +233,7 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
             <X className="h-5 w-5" />
           </button>
         </div>
-
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
-          {/* Name Input for Anonymous Users */}
           {showNameInput && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -264,8 +254,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
               <p className="text-xs text-gray-500 mt-1">השם יישמר למכשיר זה עבור אירוע זה</p>
             </div>
           )}
-
-          {/* Item Name */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               שם הפריט *
@@ -291,8 +279,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
               </p>
             )}
           </div>
-
-          {/* Category and Quantity */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -312,7 +298,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
                 ))}
               </select>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 כמות *
@@ -340,8 +325,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
               )}
             </div>
           </div>
-
-          {/* Notes */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               הערות (אופציונלי)
@@ -358,8 +341,6 @@ export function UserMenuItemForm({ event, onClose, availableCategories }: UserMe
               />
             </div>
           </div>
-
-          {/* Actions */}
           <div className="flex space-x-3 rtl:space-x-reverse">
             <button
               type="submit"

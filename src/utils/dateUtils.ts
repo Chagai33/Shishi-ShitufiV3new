@@ -65,6 +65,7 @@ export function getNextFriday(): string {
 export function isEventFinished(dateStr: string, timeStr: string): boolean {
   try {
     const eventDateTime = new Date(`${dateStr}T${timeStr}`);
+    eventDateTime.setHours(eventDateTime.getHours() + 6);
     const now = new Date();
     return eventDateTime < now;
   } catch (error) {

@@ -102,7 +102,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
         })}
       </div>
 
-      {/* כפתור הוספת פריט */}
+       {/* כפתור הוספת פריט */}
       <div className="mt-8">
         <button
           onClick={onAddItem}
@@ -114,7 +114,6 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
               : 'bg-success hover:bg-success/90'
             }`}
         >
-          <Plus className="h-5 w-5 ml-2" />
           הוסף פריט משלך
         </button>
       </div>

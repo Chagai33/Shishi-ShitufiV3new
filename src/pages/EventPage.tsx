@@ -345,6 +345,13 @@ const EventPage: React.FC = () => {
     const menuItems = useStore(selectMenuItems);
     const assignments = useStore(selectAssignments);
     const participants = useStore(selectParticipants);
+    const userCreatedItemsCount = useMemo(() => {
+        if (!localUser) return 0;
+        return menuItems.filter(item => item.creatorId === localUser.uid).length;
+    }, [menuItems, localUser]);
+
+    const MAX_USER_ITEMS = 3;
+    const canAddMoreItems = userCreatedItemsCount < MAX_USER_ITEMS;
 
     const [modalState, setModalState] = useState<{ type: 'assign' | 'edit' | 'add-user-item'; item?: MenuItemType; assignment?: AssignmentType } | null>(null);
     const [itemToAssignAfterJoin, setItemToAssignAfterJoin] = useState<MenuItemType | null>(null);
@@ -400,12 +407,38 @@ const EventPage: React.FC = () => {
     };
     
     const handleCancelClick = async (assignment: AssignmentType) => {
-        if (!eventId) return;
-        if (window.confirm("האם לבטל את השיבוץ?")) {
-            await FirebaseService.cancelAssignment(eventId, assignment.id, assignment.menuItemId);
-            toast.success("השיבוץ בוטל");
+    if (!eventId || !localUser) return;
+
+    const item = menuItems.find(i => i.id === assignment.menuItemId);
+    if (!item) {
+        toast.error("הפריט לא נמצא");
+        return;
+    }
+
+    const isCreator = item.creatorId === localUser.uid;
+
+    if (isCreator) {
+        // המשתמש הוא גם היוצר וגם המשבץ - מוחקים את הפריט
+        if (window.confirm("פעולה זו תמחק גם את הפריט וגם את השיבוץ")) {
+            try {
+                await FirebaseService.deleteMenuItem(eventId, item.id);
+                toast.success("הפריט והשיבוץ נמחקו");
+            } catch (error) {
+                toast.error("שגיאה במחיקת הפריט");
+            }
         }
-    };
+    } else {
+        // המשתמש רק משובץ - מבטלים רק את השיבוץ
+        if (window.confirm("האם לבטל את השיבוץ?")) {
+            try {
+                await FirebaseService.cancelAssignment(eventId, assignment.id, assignment.menuItemId);
+                toast.success("השיבוץ בוטל");
+            } catch (error) {
+                toast.error("שגיאה בביטול השיבוץ");
+            }
+        }
+    }
+};
     
     const handleEditClick = (item: MenuItemType, assignment: AssignmentType) => setModalState({ type: 'edit', item, assignment });
     const handleBackToCategories = () => { setView('categories'); setSelectedCategory(null); setSearchTerm(''); };
@@ -557,9 +590,19 @@ const EventPage: React.FC = () => {
         <CategorySelector menuItems={menuItems} assignments={assignments} onSelectCategory={handleCategoryClick} />
         <div className="max-w-4xl mx-auto px-4 mt-8">
             <div className="flex justify-center">
-                <button onClick={() => setModalState({ type: 'add-user-item' })} className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center">
-    <Plus size={22} className="inline-block ml-2" />
-    הוסף פריט משלך
+                <button
+  onClick={() => {
+    if (canAddMoreItems) {
+      setModalState({ type: 'add-user-item', item: undefined, assignment: undefined });
+    } else {
+      toast.error(`הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`);
+    }
+  }}
+  title={canAddMoreItems ? "הוסף פריט חדש לארוחה" : `הגעת למכסת ${MAX_USER_ITEMS} הפריטים`}
+  className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center"
+>
+  <Plus size={22} className="inline-block ml-2" />
+  הוסף פריט משלך ({userCreatedItemsCount}/{MAX_USER_ITEMS})
 </button>
             </div>
         </div>
@@ -567,7 +610,24 @@ const EventPage: React.FC = () => {
 ) : (
     <div>
         <button onClick={handleBackToCategories} className="flex items-center text-sm font-semibold text-accent hover:underline mb-4"><ArrowRight size={16} className="ml-1" />חזור לקטגוריות</button>
-        <h2 className="text-xl font-bold mb-4 text-neutral-800">{searchTerm ? 'תוצאות חיפוש' : selectedCategory === 'my-assignments' ? 'השיבוצים שלי' : categoryNames[selectedCategory!] }</h2>
+        <div className="flex items-center justify-between mb-4">
+  <div className="flex items-center justify-between mb-4">
+  <h2 className="text-xl font-bold text-neutral-800">
+    {searchTerm ? 'תוצאות חיפוש' : selectedCategory === 'my-assignments' ? 'השיבוצים שלי' : categoryNames[selectedCategory!]}
+  </h2>
+  
+</div>
+  {selectedCategory && selectedCategory !== 'my-assignments' && canAddMoreItems && (
+    <button
+  onClick={() => setModalState({ type: 'add-user-item', category: selectedCategory as any })}
+  title="הוסף פריט לקטגוריה זו"
+  className="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors flex items-center"
+>
+  <Plus size={16} className="ml-2" />
+  <span>הוסף פריט</span>
+</button>
+  )}
+</div>
         {itemsToDisplay.length > 0 ? (
             <div className="space-y-6">
                 {(() => {
@@ -634,11 +694,12 @@ const EventPage: React.FC = () => {
             {localUser && modalState?.type === 'assign' && modalState.item && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} />)}
             {localUser && modalState?.type === 'edit' && modalState.item && modalState.assignment && (<AssignmentModal item={modalState.item} eventId={eventId!} user={localUser} onClose={() => setModalState(null)} isEdit={true} existingAssignment={modalState.assignment} />)}
             {modalState?.type === 'add-user-item' && currentEvent && (
-                <UserMenuItemForm 
-                    event={currentEvent} 
-                    onClose={() => setModalState(null)} 
-                />
-            )}
+    <UserMenuItemForm
+        event={currentEvent}
+        onClose={() => setModalState(null)}
+        category={modalState.category} // הוספנו את השורה הזו
+    />
+)}
         </div>
     );
 };
