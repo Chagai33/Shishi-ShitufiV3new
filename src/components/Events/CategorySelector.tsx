@@ -19,6 +19,8 @@ interface CategorySelectorProps {
   onSelectCategory: (category: string) => void;
   onAddItem: () => void;
   canAddMoreItems: boolean;
+  userCreatedItemsCount: number; 
+  MAX_USER_ITEMS: number; 
 }
 
 export const CategorySelector: React.FC<CategorySelectorProps> = ({
@@ -27,6 +29,8 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
   onSelectCategory,
   onAddItem,
   canAddMoreItems,
+  userCreatedItemsCount,
+  MAX_USER_ITEMS,
 }) => {
 
   // פונקציית עזר לחישוב סטטוס והתקדמות לכל קטגוריה
@@ -114,7 +118,8 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
               : 'bg-success hover:bg-success/90'
             }`}
         >
-          הוסף פריט משלך
+          <Plus size={20} className="ml-2" />
+          הוסף פריט משלך ({userCreatedItemsCount}/{MAX_USER_ITEMS})
         </button>
       </div>
     </div>

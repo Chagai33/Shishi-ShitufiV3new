@@ -587,7 +587,15 @@ const EventPage: React.FC = () => {
 
                 {view === 'categories' ? (
     <>
-        <CategorySelector menuItems={menuItems} assignments={assignments} onSelectCategory={handleCategoryClick} />
+        <CategorySelector 
+            menuItems={menuItems} 
+            assignments={assignments} 
+            onSelectCategory={handleCategoryClick}
+            onAddItem={() => setModalState({ type: 'add-user-item' })}
+            canAddMoreItems={canAddMoreItems}
+            userCreatedItemsCount={userCreatedItemsCount}
+            MAX_USER_ITEMS={MAX_USER_ITEMS}
+        />
         <div className="max-w-4xl mx-auto px-4 mt-8">
             <div className="flex justify-center">
                 <button
