@@ -617,15 +617,26 @@ const EventPage: React.FC = () => {
   </h2>
   
 </div>
-  {selectedCategory && selectedCategory !== 'my-assignments' && canAddMoreItems && (
+  {/* --- השינוי --- */}
+  {/* הכפתור בתוך הקטגוריה מקבל את העיצוב והטקסט של הכפתור החיצוני */}
+  {selectedCategory && selectedCategory !== 'my-assignments' && (
     <button
-  onClick={() => setModalState({ type: 'add-user-item', category: selectedCategory as any })}
-  title="הוסף פריט לקטגוריה זו"
-  className="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors flex items-center"
->
-  <Plus size={16} className="ml-2" />
-  <span>הוסף פריט</span>
-</button>
+      onClick={() => {
+        if (canAddMoreItems) {
+          setModalState({ type: 'add-user-item', category: selectedCategory as any });
+        } else {
+          toast.error(`הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`);
+        }
+      }}
+      title={canAddMoreItems ? "הוסף פריט חדש לארוחה" : `הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`}
+      className={`w-auto flex items-center justify-center text-white font-semibold py-1 px-2 rounded-lg shadow-lg transition-colors mt-4
+        ${!canAddMoreItems 
+          ? 'bg-neutral-400 cursor-not-allowed' 
+          : 'bg-success hover:bg-success/90'
+        }`}
+    >
+      הוסף פריט 
+    </button>
   )}
 </div>
         {itemsToDisplay.length > 0 ? (
