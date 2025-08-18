@@ -352,6 +352,24 @@ const EventPage: React.FC = () => {
 
     const MAX_USER_ITEMS = 3;
     const canAddMoreItems = userCreatedItemsCount < MAX_USER_ITEMS;
+    const assignmentStats = useMemo(() => {
+        const requiredItems = menuItems.filter(item => item.isRequired);
+        const optionalItems = menuItems.filter(item => !item.isRequired);
+
+        const assignedRequiredItems = requiredItems.filter(item => 
+            assignments.some(a => a.menuItemId === item.id)
+        );
+        const assignedOptionalItems = optionalItems.filter(item => 
+            assignments.some(a => a.menuItemId === item.id)
+        );
+
+        return {
+            requiredTotal: requiredItems.length,
+            requiredAssigned: assignedRequiredItems.length,
+            optionalTotal: optionalItems.length,
+            optionalAssigned: assignedOptionalItems.length,
+        };
+    }, [menuItems, assignments]);
 
     const [modalState, setModalState] = useState<{ type: 'assign' | 'edit' | 'add-user-item'; item?: MenuItemType; assignment?: AssignmentType } | null>(null);
     const [itemToAssignAfterJoin, setItemToAssignAfterJoin] = useState<MenuItemType | null>(null);
@@ -546,9 +564,18 @@ const EventPage: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-md p-4 mb-4">
                     <div className="flex justify-between items-start mb-3">
                         <h1 className="text-xl font-bold text-neutral-900">{currentEvent.details.title}</h1>
-                        <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full whitespace-nowrap">
-                            {assignments.length}/{menuItems.length} שובצו
-                        </span>
+                        <div className="flex flex-col items-end gap-y-2">
+                        {assignmentStats.requiredTotal > 0 && (
+                          <div className="text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded-full whitespace-nowrap" title="פריטי חובה">
+    <span>חובה: {assignmentStats.requiredAssigned}/{assignmentStats.requiredTotal} שובצו</span>
+</div>
+                        )}
+                        {assignmentStats.optionalTotal > 0 && (
+                          <div className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full whitespace-nowrap" title="פריטי רשות">
+                            <span>רשות: {assignmentStats.optionalAssigned}/{assignmentStats.optionalTotal} שובצו</span>
+                          </div>
+                        )}
+                    </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
                         <p className="flex items-center"><Calendar size={14} className="ml-1.5 flex-shrink-0" /> {new Date(currentEvent.details.date).toLocaleDateString('he-IL')}</p>
