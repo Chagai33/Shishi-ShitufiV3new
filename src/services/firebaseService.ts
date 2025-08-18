@@ -1,10 +1,12 @@
 // src/services/firebaseService.ts
 
-import { ref, push, set, get, onValue, off, remove, update, query, equalTo, orderByChild } from 'firebase/database';
+import { ref, push, set, get, onValue, off, remove, update, query, equalTo, orderByChild, runTransaction } from 'firebase/database';
+
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions'; // <-- הוספת import
 import { database, auth } from '../lib/firebase';
 import { ShishiEvent, MenuItem, Assignment, User, EventDetails, PresetList, PresetItem } from '../types'; 
+
 import { toast } from 'react-hot-toast'; 
 
 const functions = getFunctions(); // <-- אתחול שירות הפונקציות
@@ -333,41 +335,70 @@ export class FirebaseService {
     assignToUserId: string | null,
     assignToUserName: string
   ): Promise<string> {
-    console.group('🍽️➕👤 FirebaseService.addMenuItemAndAssign');
+    console.group('🍽️➕👤 FirebaseService.addMenuItemAndAssign (Transactional)');
     console.log('📥 Input parameters:', { eventId, itemData, assignToUserId, assignToUserName });
-    console.log('🔗 Event path:', `events/${eventId}`);
-    
+
+    if (!assignToUserId) {
+      console.error('❌ Transaction aborted: assignToUserId is null.');
+      console.groupEnd();
+      throw new Error('לא ניתן להוסיף פריט ללא שיבוץ למשתמש.');
+    }
+
+    const eventRef = ref(database, `events/${eventId}`);
+    let newItemId: string | null = null;
+
     try {
-      console.log('🔧 Ensuring event structure...');
-      await this.ensureEventStructure(eventId);
-      console.log('✅ Event structure ensured');
-      
-      console.log('📝 Creating new item reference...');
-      const newItemRef = push(ref(database, `events/${eventId}/menuItems`));
-      const newItemId = newItemRef.key!;
-      console.log('🆔 Generated item ID:', newItemId);
-      
-      const updates: { [key: string]: any } = {};
-      
-      // הוספת הפריט
-      const finalItemData: any = {
-        ...itemData,
-        id: newItemId
-      };
-      
-      // נקה ערכי undefined
-      if (!finalItemData.notes) {
-        delete finalItemData.notes;
-      }
+      await runTransaction(eventRef, (currentEventData: ShishiEvent | null) => {
+        if (currentEventData === null) {
+          // אם האירוע לא קיים, הטרנזקציה תיכשל והשגיאה תתפס ב-catch.
+          // אין צורך לזרוק שגיאה מכאן.
+          return; 
+        }
 
-      // אם יש שיבוץ, הוסף את פרטי השיבוץ לפריט
-      if (assignToUserId) {
-        console.log('👤 Adding assignment data to item...');
-        finalItemData.assignedTo = assignToUserId;
-        finalItemData.assignedToName = assignToUserName;
-        finalItemData.assignedAt = Date.now();
+        console.log('🔧 Transaction started. Current event data:', currentEventData);
 
-        // יצירת שיבוץ נפרד
+        // --- לוגיקת הבדיקות החדשה ---
+        const details = currentEventData.details;
+        const userItemCount = currentEventData.userItemCounts?.[assignToUserId] || 0;
+
+        // בדיקה #1: האם למנהל מותר להוסיף פריטים
+        // (הערה: לוגיקה זו נאכפת גם ב-Security Rules)
+        if (details.allowUserItems === false) { // בדיקה מפורשת ל-false
+          throw new Error('המארגן לא איפשר הוספת פריטים באירוע זה.');
+        }
+
+        // בדיקה #2: האם המשתמש עבר את המגבלה
+        if (userItemCount >= (details.userItemLimit ?? 3)) {
+          throw new Error(`הגעת למגבלת ${details.userItemLimit ?? 3} הפריטים שניתן להוסיף.`);
+        }
+        console.log(`✅ User count validation passed (${userItemCount} < ${details.userItemLimit ?? 3})`);
+
+        // --- שמירה על הלוגיקה המקורית ליצירת הנתונים ---
+        console.log('📝 Creating new item reference...');
+        const newItemRef = push(ref(database, `events/${eventId}/menuItems`));
+        newItemId = newItemRef.key!; // שמירת המזהה מחוץ לטרנזקציה
+        console.log('🆔 Generated item ID:', newItemId);
+
+        // וידוא מבנה נתונים תקין (מחליף את ensureEventStructure)
+        if (!currentEventData.menuItems) currentEventData.menuItems = {};
+        if (!currentEventData.assignments) currentEventData.assignments = {};
+        if (!currentEventData.participants) currentEventData.participants = {};
+        if (!currentEventData.userItemCounts) currentEventData.userItemCounts = {};
+        console.log('✅ Event structure ensured');
+
+        // הכנת אובייקט הפריט
+        const finalItemData: any = {
+          ...itemData,
+          id: newItemId,
+          assignedTo: assignToUserId,
+          assignedToName: assignToUserName,
+          assignedAt: Date.now()
+        };
+        if (!finalItemData.notes) {
+          delete finalItemData.notes;
+        }
+
+        // הכנת אובייקט השיבוץ
         console.log('📋 Creating separate assignment...');
         const newAssignmentRef = push(ref(database, `events/${eventId}/assignments`));
         const assignmentData: Omit<Assignment, 'id'> = {
@@ -379,27 +410,32 @@ export class FirebaseService {
           status: 'confirmed',
           assignedAt: Date.now()
         };
-        
         console.log('📋 Assignment data:', assignmentData);
-        updates[`events/${eventId}/assignments/${newAssignmentRef.key}`] = assignmentData;
+
+        // --- עדכון ישיר של הנתונים בטרנזקציה ---
+        currentEventData.menuItems[newItemId] = finalItemData;
+        currentEventData.assignments[newAssignmentRef.key!] = assignmentData;
+        
+        // --- עדכון המונה החדש ---
+        currentEventData.userItemCounts[assignToUserId] = userItemCount + 1;
+        console.log(`📈 Incremented item count for user ${assignToUserId} to ${userItemCount + 1}`);
+
+        return currentEventData;
+      });
+
+      console.log('✅ Transaction committed successfully!');
+      console.groupEnd();
+      if (!newItemId) {
+        throw new Error("Failed to generate a new item ID during the transaction.");
       }
-      
-      updates[`events/${eventId}/menuItems/${newItemId}`] = finalItemData;
-      
-      console.log('💾 Updates to apply:', updates);
-      console.log('🚀 Applying updates to Firebase...');
-      await update(ref(database), updates);
-      console.log('✅ Menu item and assignment saved successfully!');
-      console.groupEnd();
-      
       return newItemId;
+
     } catch (error) {
-      console.error('❌ Error in addMenuItemAndAssign:', error);
+      console.error('❌ Error in addMenuItemAndAssign Transaction:', error);
       console.groupEnd();
-      throw error;
+      throw error; // זריקת השגיאה הלאה כדי ש-toast יציג אותה
     }
   }
-
   /**
    * מעדכן פריט תפריט
    */
@@ -441,32 +477,57 @@ export class FirebaseService {
    * מוחק פריט תפריט
    */
   static async deleteMenuItem(eventId: string, itemId: string): Promise<void> {
-    console.group('🗑️ FirebaseService.deleteMenuItem');
+    console.group('🗑️ FirebaseService.deleteMenuItem (Transactional)');
     console.log('📥 Input parameters:', { eventId, itemId });
+
+    const eventRef = ref(database, `events/${eventId}`);
     
     try {
-      const updates: { [key: string]: null } = {};
-      
-      // מחיקת הפריט
-      updates[`events/${eventId}/menuItems/${itemId}`] = null;
-      
-      // מחיקת כל השיבוצים הקשורים לפריט
-      const assignmentsRef = ref(database, `events/${eventId}/assignments`);
-      const q = query(assignmentsRef, orderByChild('menuItemId'), equalTo(itemId));
-      const assignmentsSnapshot = await get(q);
+      await runTransaction(eventRef, (currentEventData: ShishiEvent | null) => {
+        if (currentEventData === null || !currentEventData.menuItems?.[itemId]) {
+          // אם האירוע או הפריט לא קיימים, אין מה לעשות.
+          console.log('Transaction aborted: Event or menu item not found.');
+          return; 
+        }
 
-      if (assignmentsSnapshot.exists()) {
-        const assignments = assignmentsSnapshot.val();
-        Object.keys(assignments).forEach(assignmentId => {
-          updates[`events/${eventId}/assignments/${assignmentId}`] = null;
-        });
-      }
-      
-      await update(ref(database), updates);
-      console.log('✅ Menu item and related assignments deleted successfully');
+        console.log('🔧 Transaction started. Current event data:', currentEventData);
+        
+        const itemToDelete = currentEventData.menuItems[itemId];
+        const creatorId = itemToDelete.creatorId;
+
+        // שלב 1: עדכון המונה (אם רלוונטי)
+        if (creatorId && currentEventData.userItemCounts?.[creatorId]) {
+          currentEventData.userItemCounts[creatorId]--;
+          console.log(`📉 Decremented item count for user ${creatorId} to ${currentEventData.userItemCounts[creatorId]}`);
+          // אם המונה הגיע לאפס, נקה את הרשומה
+          if (currentEventData.userItemCounts[creatorId] <= 0) {
+            delete currentEventData.userItemCounts[creatorId];
+            console.log(`🧹 Cleaned up zero-count entry for user ${creatorId}`);
+          }
+        }
+        
+        // שלב 2: מחיקת הפריט עצמו
+        delete currentEventData.menuItems[itemId];
+        console.log(`🗑️ Marked menu item ${itemId} for deletion.`);
+
+        // שלב 3: מחיקת כל השיבוצים הקשורים לפריט
+        if (currentEventData.assignments) {
+          Object.keys(currentEventData.assignments).forEach(assignmentId => {
+            if (currentEventData.assignments[assignmentId].menuItemId === itemId) {
+              delete currentEventData.assignments[assignmentId];
+              console.log(`🗑️ Marked related assignment ${assignmentId} for deletion.`);
+            }
+          });
+        }
+        
+        // החזרת האובייקט המעודכן כדי שהטרנזקציה תכתוב אותו
+        return currentEventData;
+      });
+
+      console.log('✅ Menu item and related data deleted successfully via transaction');
       console.groupEnd();
     } catch (error) {
-      console.error('❌ Error in deleteMenuItem:', error);
+      console.error('❌ Error in deleteMenuItem transaction:', error);
       console.groupEnd();
       throw error;
     }

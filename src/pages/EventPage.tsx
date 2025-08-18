@@ -346,11 +346,14 @@ const EventPage: React.FC = () => {
     const assignments = useStore(selectAssignments);
     const participants = useStore(selectParticipants);
     const userCreatedItemsCount = useMemo(() => {
-        if (!localUser) return 0;
-        return menuItems.filter(item => item.creatorId === localUser.uid).length;
-    }, [menuItems, localUser]);
+        if (!localUser || !currentEvent?.userItemCounts) return 0;
+        // קריאה ישירה מהמונה החדש שהוספנו
+        return currentEvent.userItemCounts[localUser.uid] || 0;
+    }, [currentEvent, localUser]);
 
     const MAX_USER_ITEMS = currentEvent?.details.userItemLimit ?? 3;
+    
+    // בדיקה משולבת: האם מותר להוסיף פריטים וגם האם המשתמש עומד במגבלה
     const canAddMoreItems = (currentEvent?.details.allowUserItems ?? false) && userCreatedItemsCount < MAX_USER_ITEMS;
     const assignmentStats = useMemo(() => {
         const requiredItems = menuItems.filter(item => item.isRequired);
@@ -618,33 +621,28 @@ const EventPage: React.FC = () => {
             menuItems={menuItems} 
             assignments={assignments} 
             onSelectCategory={handleCategoryClick}
-            onAddItem={() => setModalState({ type: 'add-user-item' })}
-            canAddMoreItems={canAddMoreItems}
-            userCreatedItemsCount={userCreatedItemsCount}
-            MAX_USER_ITEMS={MAX_USER_ITEMS}
+            // אין יותר צורך להעביר את הפרמטרים הללו כי הם נבדקים במקום אחר
         />
         <div className="max-w-4xl mx-auto px-4 mt-8">
             <div className="flex justify-center">
-                {currentEvent?.details.allowUserItems && (
-                  <button
-                    onClick={() => {
-                      if (!currentEvent?.details.allowUserItems) {
-                        toast.error('המארגן לא איפשר הוספת פריטים באירוע זה.');
-                        return;
-                      }
-                      if (canAddMoreItems) {
-                        setModalState({ type: 'add-user-item', item: undefined, assignment: undefined });
-                      } else {
-                        toast.error(`הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`);
-                      }
-                    }}
-                    title={canAddMoreItems ? "הוסף פריט חדש לארוחה" : `הגעת למכסת ${MAX_USER_ITEMS} הפריטים`}
-                    className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center"
-                  >
-                    <Plus size={22} className="inline-block ml-2" />
-                    הוסף פריט משלך ({userCreatedItemsCount}/{currentEvent?.details.userItemLimit ?? 3})
-                  </button>
-                )}
+              {/* התניית התצוגה: הצג את הכפתור רק אם מותר להוסיף פריטים */}
+              {currentEvent?.details.allowUserItems && (
+                <button
+                  onClick={() => {
+                    if (canAddMoreItems) {
+                      setModalState({ type: 'add-user-item' });
+                    } else {
+                      toast.error(`הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`);
+                    }
+                  }}
+                  title={canAddMoreItems ? "הוסף פריט חדש לארוחה" : `הגעת למכסת ${MAX_USER_ITEMS} הפריטים`}
+                  className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-success/90 disabled:bg-neutral-400 disabled:cursor-not-allowed transition-colors font-semibold text-sm flex items-center"
+                  disabled={!canAddMoreItems}
+                >
+                  <Plus size={22} className="inline-block ml-2" />
+                  הוסף פריט משלך ({userCreatedItemsCount}/{MAX_USER_ITEMS})
+                </button>
+              )}
             </div>
         </div>
     </>
@@ -660,32 +658,22 @@ const EventPage: React.FC = () => {
 </div>
   {/* --- השינוי --- */}
   {/* הכפתור בתוך הקטגוריה מקבל את העיצוב והטקסט של הכפתור החיצוני */}
-  {selectedCategory && selectedCategory !== 'my-assignments' && (
-    <>
-      {currentEvent?.details.allowUserItems && (
-        <button
-          onClick={() => {
-            if (!currentEvent?.details.allowUserItems) {
-              toast.error('המארגן לא איפשר הוספת פריטים באירוע זה.');
-              return;
-            }
-            if (canAddMoreItems) {
-              setModalState({ type: 'add-user-item', category: selectedCategory as any });
-            } else {
-              toast.error(`הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`);
-            }
-          }}
-          title={canAddMoreItems ? "הוסף פריט חדש לארוחה" : `הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`}
-          className={`w-auto flex items-center justify-center text-white font-semibold py-1 px-2 rounded-lg shadow-lg transition-colors mt-4
-            ${!canAddMoreItems 
-              ? 'bg-neutral-400 cursor-not-allowed' 
-              : 'bg-success hover:bg-success/90'
-            }`}
-        >
-          הוסף פריט 
-        </button>
-      )}
-    </>
+  {selectedCategory && selectedCategory !== 'my-assignments' && currentEvent?.details.allowUserItems && (
+    <button
+      onClick={() => {
+        if (canAddMoreItems) {
+          setModalState({ type: 'add-user-item', item: undefined, assignment: undefined, category: selectedCategory as any });
+        } else {
+          toast.error(`הגעת למכסת ${MAX_USER_ITEMS} הפריטים שניתן להוסיף.`);
+        }
+      }}
+      title={canAddMoreItems ? "הוסף פריט חדש לקטגוריה זו" : `הגעת למכסת ${MAX_USER_ITEMS} הפריטים`}
+      className="bg-success text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-success/90 disabled:bg-neutral-400 disabled:cursor-not-allowed transition-colors font-semibold text-sm flex items-center"
+      disabled={!canAddMoreItems}
+    >
+      <Plus size={16} className="inline-block ml-1" />
+      הוסף פריט ({userCreatedItemsCount}/{MAX_USER_ITEMS})
+    </button>
   )}
 </div>
         {itemsToDisplay.length > 0 ? (

@@ -86,6 +86,8 @@ export interface ShishiEvent {
   menuItems: { [key: string]: Omit<MenuItem, 'id' | 'eventId'> };
   assignments: { [key: string]: Omit<Assignment, 'id' | 'eventId'> };
   participants: { [key: string]: Omit<Participant, 'id'> };
+  userItemCounts?: { [key: string]: number };
+
 }
 
 // טיפוסים עבור ה-Store הגלובלי (Zustand)

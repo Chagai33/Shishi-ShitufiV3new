@@ -201,7 +201,8 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
                                 <input type="checkbox" checked={details.isActive} onChange={(e) => setDetails({...details, isActive: e.target.checked})} className="rounded" />
                                 <span className="mr-2 text-sm text-gray-700">הפוך לאירוע פעיל</span>
                             </label>
-                            <div className="border-t pt-4">
+                            
+                            <div className="border-t pt-4 mt-4">
                                 <label className="flex items-center">
                                     <input
                                         type="checkbox"

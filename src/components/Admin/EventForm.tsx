@@ -31,12 +31,14 @@ export function EventForm({ event, onClose }: EventFormProps) {
     title: event?.details.title || '',
     date: event?.details.date || getNextFriday(),
     time: event?.details.time || '19:00',
-    location: event?.details.location || 'שטרוק 21 תל אביב',
+    location: event?.details.location || '',
     description: event?.details.description || '',
     hostName: event?.organizerName || authUser?.displayName || '', 
     isActive: event?.details.isActive ?? true,
     endDate: event?.details.endDate || '',
     endTime: event?.details.endTime || '',
+    allowUserItems: event?.details.allowUserItems ?? true, // ברירת מחדל: מאושר
+    userItemLimit: event?.details.userItemLimit || 3, // ברירת מחדל: 3
   });
 
   const validateForm = (): boolean => {
@@ -111,6 +113,8 @@ export function EventForm({ event, onClose }: EventFormProps) {
         isActive: formData.isActive,
         endDate: formData.endDate || undefined,
         endTime: formData.endTime || undefined,
+        allowUserItems: formData.allowUserItems,
+        userItemLimit: formData.allowUserItems ? formData.userItemLimit : 0,
       };
 
       if (event) {
@@ -382,6 +386,34 @@ export function EventForm({ event, onClose }: EventFormProps) {
             <p className="text-xs text-gray-500 mt-1">
               רק אירועים פעילים מאפשרים שיבוצים חדשים
             </p>
+          </div>
+          <div className="border-t pt-6 mb-6">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.allowUserItems}
+                onChange={(e) => handleInputChange('allowUserItems', e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                disabled={isSubmitting}
+              />
+              <span className="mr-2 text-sm text-gray-700">אפשר למשתתפים להוסיף פריטים בעצמם</span>
+            </label>
+            {formData.allowUserItems && (
+              <div className="mt-4 mr-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  מגבלת פריטים למשתמש
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={formData.userItemLimit}
+                  onChange={(e) => handleInputChange('userItemLimit', parseInt(e.target.value) || 1)}
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
           </div>
 
           {/* Actions */}
