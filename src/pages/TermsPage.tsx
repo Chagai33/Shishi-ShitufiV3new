@@ -57,7 +57,17 @@ const TermsPage: React.FC = () => (
         <p>על תנאי שימוש אלו יחולו דיני מדינת ישראל. סמכות השיפוט הבלעדית בכל סכסוך תהא נתונה לבתי המשפט המוסמכים במחוז תל אביב-יפו.</p>
 
         <h2>9. יצירת קשר</h2>
-        <p>בכל שאלה בנוגע לתנאי שימוש אלו, ניתן ליצור עמנו קשר באמצעות <a href="https://docs.google.com/forms/d/e/1FAIpQLScliYWHohU4JSq1Xm3d_0auBCetq4BgoDp0vc7M9SCbIT6cbw/viewform" target="_blank" rel="noopener noreferrer">טופס יצירת הקשר</a>.</p>
+        <p>
+          בכל שאלה בנוגע לתנאי שימוש אלו, ניתן ליצור עמנו קשר באחת מהדרכים הבאות:
+        </p>
+        <ul>
+            <li>
+                באמצעות <a href="https://docs.google.com/forms/d/1V45Zzte9AJ9okw11Dhg0750xzt8T9t8Q0mGHjwg_BUc/preview" target="_blank" rel="noopener noreferrer">טופס יצירת הקשר</a>.
+            </li>
+            <li>
+                דרך כתובת המייל: <a href="mailto:Shishi.Shitufi.App@gmail.com">Shishi.Shitufi.App@gmail.com</a>.
+            </li>
+        </ul>
 
         <hr className="my-8" />
         
@@ -100,7 +110,11 @@ const TermsPage: React.FC = () => (
           <p>These Terms of Use shall be governed by the laws of the State of Israel. The competent courts in the Tel Aviv-Jaffa district shall have exclusive jurisdiction in any dispute.</p>
 
           <h2>9. Contact</h2>
-          <p>For any questions regarding these Terms of Use, you can contact us using our <a href="https://docs.google.com/forms/d/e/1FAIpQLScliYWHohU4JSq1Xm3d_0auBCetq4BgoDp0vc7M9SCbIT6cbw/viewform" target="_blank" rel="noopener noreferrer">contact form</a>.</p>
+          <p>For any questions regarding these Terms of Use, you can contact us by:</p>
+          <ul>
+              <li>Using our <a href="https://docs.google.com/forms/d/e/1FAIpQLScliYWHohU4JSq1Xm3d_0auBCetq4BgoDp0vc7M9SCbIT6cbw/viewform" target="_blank" rel="noopener noreferrer">dedicated contact form</a>.</li>
+              <li>Via email at: <a href="mailto:Shishi.Shitufi.App@gmail.com">Shishi.Shitufi.App@gmail.com</a>.</li>
+          </ul>
         </div>
       </div>
     </div>

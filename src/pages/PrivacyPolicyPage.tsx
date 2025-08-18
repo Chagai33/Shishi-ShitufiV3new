@@ -53,7 +53,18 @@ const PrivacyPolicyPage: React.FC = () => (
         <p>השירות אינו מיועד לשימוש על ידי ילדים מתחת לגיל 16. איננו אוספים ביודעין מידע אישי מילדים.</p>
 
         <h2>7. זכויות המשתמש</h2>
-        <p>על פי חוק הגנת הפרטיות, אתה זכאי לעיין במידע האישי שלך, לבקש לתקן אותו או לבקש את מחיקתו. למימוש זכויות אלו, או בכל שאלה אחרת בנושאי פרטיות, אנא פנה אלינו באמצעות <a href="https://docs.google.com/forms/d/e/1FAIpQLScliYWHohU4JSq1Xm3d_0auBCetq4BgoDp0vc7M9SCbIT6cbw/viewform" target="_blank" rel="noopener noreferrer">טופס הפניות הייעודי שלנו</a>.</p>
+        <p>
+          על פי חוק הגנת הפרטיות, אתה זכאי לעיין במידע האישי שלך, לבקש לתקן אותו או לבקש את מחיקתו. 
+          למימוש זכויות אלו, או בכל שאלה אחרת בנושאי פרטיות, אנא פנה אלינו באחת מהדרכים הבאות:
+        </p>
+        <ul>
+            <li>
+                באמצעות <a href="https://docs.google.com/forms/d/1V45Zzte9AJ9okw11Dhg0750xzt8T9t8Q0mGHjwg_BUc/preview" target="_blank" rel="noopener noreferrer">טופס הפניות הייעודי שלנו</a>.
+            </li>
+            <li>
+                דרך כתובת המייל: <a href="mailto:Shishi.Shitufi.App@gmail.com">Shishi.Shitufi.App@gmail.com</a>.
+            </li>
+        </ul>
 
         <h2>8. שינויים במדיניות הפרטיות</h2>
         <p>אנו שומרים לעצמנו את הזכות לעדכן מדיניות זו מעת לעת.</p>
@@ -95,7 +106,18 @@ const PrivacyPolicyPage: React.FC = () => (
             <p>The service is not intended for use by children under the age of 16. We do not knowingly collect personal information from children.</p>
 
             <h2>7. User Rights</h2>
-            <p>Under the Privacy Protection Law, you are entitled to review your personal information, request its correction, or request its deletion. To exercise these rights, or for any other privacy-related questions, please contact us using our <a href="https://docs.google.com/forms/d/e/1FAIpQLScliYWHohU4JSq1Xm3d_0auBCetq4BgoDp0vc7M9SCbIT6cbw/viewform" target="_blank" rel="noopener noreferrer">dedicated contact form</a>.</p>
+        <p>
+          Under the Privacy Protection Law, you are entitled to review your personal information, request its correction, or request its deletion. 
+          To exercise these rights, or for any other privacy-related questions, please contact us in one of the following ways:
+        </p>
+        <ul>
+            <li>
+                Using our <a href="https://docs.google.com/forms/d/1V45Zzte9AJ9okw11Dhg0750xzt8T9t8Q0mGHjwg_BUc/preview" target="_blank" rel="noopener noreferrer">dedicated contact form</a>.
+            </li>
+            <li>
+                Via email at: <a href="mailto:Shishi.Shitufi.App@gmail.com">Shishi.Shitufi.App@gmail.com</a>.
+            </li>
+        </ul>
             
             <h2>8. Changes to the Privacy Policy</h2>
             <p>We reserve the right to update this policy from time to time.</p>
