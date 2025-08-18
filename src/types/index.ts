@@ -20,6 +20,8 @@ export interface EventDetails {
   location: string;
   description?: string;
   isActive: boolean;
+  allowUserItems?: boolean; // האם לאפשר למשתתפים להוסיף פריטים
+  userItemLimit?: number;   // מה המגבלה למשתמש
 }
 
 /**

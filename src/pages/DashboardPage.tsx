@@ -140,6 +140,8 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
         location: editingEvent?.details.location || '',
         description: editingEvent?.details.description || '',
         isActive: editingEvent?.details.isActive ?? true,
+        allowUserItems: editingEvent?.details.allowUserItems ?? true,
+        userItemLimit: editingEvent?.details.userItemLimit ?? 3,
     });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -157,10 +159,18 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
         setIsLoading(true);
         try {
             if (editingEvent) {
-                await FirebaseService.updateEventDetails(editingEvent.id, details);
+                await FirebaseService.updateEventDetails(editingEvent.id, {
+                    ...details,
+                    allowUserItems: details.allowUserItems,
+                    userItemLimit: details.allowUserItems ? details.userItemLimit : 0,
+                });
                 toast.success("האירוע עודכן בהצלחה!");
             } else {
-                await FirebaseService.createEvent(user.id, details);
+                await FirebaseService.createEvent(user.id, {
+                    ...details,
+                    allowUserItems: details.allowUserItems,
+                    userItemLimit: details.allowUserItems ? details.userItemLimit : 0,
+                });
                 toast.success("האירוע נוצר בהצלחה!");
             }
             onEventCreated();
@@ -191,6 +201,31 @@ const EventFormModal: React.FC<{ onClose: () => void, onEventCreated: () => void
                                 <input type="checkbox" checked={details.isActive} onChange={(e) => setDetails({...details, isActive: e.target.checked})} className="rounded" />
                                 <span className="mr-2 text-sm text-gray-700">הפוך לאירוע פעיל</span>
                             </label>
+                            <div className="border-t pt-4">
+                                <label className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={details.allowUserItems}
+                                        onChange={(e) => setDetails({ ...details, allowUserItems: e.target.checked })}
+                                        className="rounded"
+                                    />
+                                    <span className="mr-2 text-sm text-gray-700">אפשר למשתתפים להוסיף פריטים</span>
+                                </label>
+                                {details.allowUserItems && (
+                                    <div className="mt-2 mr-6">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            מגבלת פריטים למשתמש
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={details.userItemLimit}
+                                            onChange={(e) => setDetails({ ...details, userItemLimit: parseInt(e.target.value) || 1 })}
+                                            className="w-24 p-2 border rounded-lg"
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3 rounded-b-xl">
