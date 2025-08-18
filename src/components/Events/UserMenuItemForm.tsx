@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, ChefHat, Hash, MessageSquare, User as UserIcon, AlertCircle } from 'lucide-react';
-import { useStore } from '../../store/useStore';
+import { useStore, selectMenuItems } from '../../store/useStore';
 import { FirebaseService } from '../../services/firebaseService';
 import { ShishiEvent, MenuItem, MenuCategory } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,6 +21,7 @@ interface FormErrors {
 }
 
 export function UserMenuItemForm({ event, onClose, category, availableCategories }: UserMenuItemFormProps) {
+  
   const { user: authUser } = useAuth(); // <-- השורה שהוחזרה
   const { addMenuItem } = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,8 +91,11 @@ export function UserMenuItemForm({ event, onClose, category, availableCategories
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const allMenuItems = selectMenuItems(useStore.getState());
+
 
     console.group('📝 UserMenuItemForm.handleSubmit');
+    
     console.log('👤 Current user:', authUser);
     console.log('📋 Form data:', formData);
     console.log('🏷️ Participant name:', participantName);
@@ -115,6 +119,20 @@ export function UserMenuItemForm({ event, onClose, category, availableCategories
       toast.error('יש לתקן את השגיאות בטופס');
       console.groupEnd();
       return;
+    }
+
+    const eventMenuItems = allMenuItems.filter(item => item.eventId === event.id);
+    const isDuplicate = eventMenuItems.some(
+        item => item.name.trim().toLowerCase() === formData.name.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+        if (!window.confirm(`פריט בשם "${formData.name.trim()}" כבר קיים באירוע. האם להוסיף אותו בכל זאת?`)) {
+            setIsSubmitting(false);
+            console.log('🛑 User cancelled duplicate item submission.');
+            console.groupEnd();
+            return; // עצירת הפונקציה אם המשתמש לחץ "ביטול"
+        }
     }
 
     if (showNameInput && !participantName.trim()) {
