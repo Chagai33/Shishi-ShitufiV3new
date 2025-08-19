@@ -101,6 +101,7 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
   const [filterEvent, setFilterEvent] = useState<string>(event?.id || 'all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterAssigned, setFilterAssigned] = useState<string>('all');
+  const [filterAddedBy, setFilterAddedBy] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [bulkAction, setBulkAction] = useState<'delete' | 'category' | 'required' | 'cancel_assignments' | null>(null);
   const [bulkCategory, setBulkCategory] = useState<MenuCategory>('main');
@@ -143,9 +144,16 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
       const isItemAssigned = (allAssignments || []).some(a => a.menuItemId === item.id);
       if (filterAssigned === 'assigned' && !isItemAssigned) return false;
       if (filterAssigned === 'unassigned' && isItemAssigned) return false;
+      if (filterAddedBy !== 'all') {
+        const eventData = realtimeEvents.find(e => e.id === item.eventId);
+        if (!eventData) return false; // אם לא נמצא אירוע, הסתר את הפריט
+        const isAdminItem = item.creatorId === eventData.organizerId;
+        if (filterAddedBy === 'user' && isAdminItem) return false;
+        if (filterAddedBy === 'admin' && !isAdminItem) return false;
+      }
       return true;
     });
-  }, [editableItems, searchTerm, filterEvent, filterCategory, filterAssigned, allAssignments]);
+  }, [editableItems, searchTerm, filterEvent, filterCategory, filterAssigned, filterAddedBy, allAssignments, realtimeEvents]);
 
   // Group items by category in the desired order
   const categorizedItems = useMemo(() => {
@@ -636,6 +644,14 @@ function BulkItemsManager({ onBack, event, allEvents = [] }: BulkItemsManagerPro
                       {assignedOptions.map(option => (
                           <FilterButton key={option.value} label={option.label} isActive={filterAssigned === option.value} onClick={() => setFilterAssigned(option.value)} />
                       ))}
+                  </div>
+              </div>
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                  <label className="text-xs font-medium text-gray-700 whitespace-nowrap">נוצר ע"י:</label>
+                  <div className="flex flex-wrap gap-1">
+                      <FilterButton label="הכל" isActive={filterAddedBy === 'all'} onClick={() => setFilterAddedBy('all')} />
+                      <FilterButton label="פריטי מנהלים" isActive={filterAddedBy === 'admin'} onClick={() => setFilterAddedBy('admin')} />
+                      <FilterButton label="פריטי משתמשים" isActive={filterAddedBy === 'user'} onClick={() => setFilterAddedBy('user')} />
                   </div>
               </div>
           </div>
