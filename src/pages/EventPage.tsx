@@ -205,7 +205,7 @@ const AssignmentModal: React.FC<{
             }
             
             if (isEdit && existingAssignment) {
-                await FirebaseService.updateAssignment(eventId, existingAssignment.id, { quantity, notes: notes.trim() });
+                await FirebaseService.updateAssignment(eventId, existingAssignment.id, { quantity, notes: notes.trim(), userName: finalUserName });
                 toast.success("השיבוץ עודכן בהצלחה!");
             } else {
                 await FirebaseService.createAssignment(eventId, {

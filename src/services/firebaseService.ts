@@ -637,24 +637,85 @@ export class FirebaseService {
     }
   }
 
+// src/services/firebaseService.ts
+
   /**
-   * מעדכן שיבוץ קיים
+   * מעדכן שיבוץ קיים. אם שם המשתמש משתנה, הפונקציה תעדכן את השם בכל השיבוצים והפריטים של אותו משתמש באירוע הנוכחי.
    */
   static async updateAssignment(
     eventId: string,
     assignmentId: string,
-    updates: { quantity: number; notes?: string }
+    updates: { quantity: number; notes?: string; userName?: string }
   ): Promise<void> {
-    console.group('📝 FirebaseService.updateAssignment');
+    console.group('📝 FirebaseService.updateAssignment (Enhanced)');
     console.log('📥 Input parameters:', { eventId, assignmentId, updates });
     
     try {
-      const assignmentRef = ref(database, `events/${eventId}/assignments/${assignmentId}`);
-      await update(assignmentRef, {
-        ...updates,
-        updatedAt: Date.now()
-      });
-      console.log('✅ Assignment updated successfully');
+      const dbUpdates: { [key: string]: any } = {};
+      const assignmentPath = `events/${eventId}/assignments/${assignmentId}`;
+
+      // Step 1: Prepare the basic updates for the specific assignment being edited.
+      dbUpdates[`${assignmentPath}/quantity`] = updates.quantity;
+      dbUpdates[`${assignmentPath}/notes`] = updates.notes || null; // Use null for empty notes
+      dbUpdates[`${assignmentPath}/updatedAt`] = Date.now();
+
+      // Step 2: Check if the user's name needs to be updated across the entire event.
+      if (updates.userName) {
+        const assignmentRef = ref(database, assignmentPath);
+        const assignmentSnapshot = await get(assignmentRef);
+
+        if (assignmentSnapshot.exists()) {
+          const assignmentData = assignmentSnapshot.val();
+          const currentUserId = assignmentData.userId;
+          const currentUserName = assignmentData.userName;
+
+          // Only proceed if the name has actually changed.
+          if (currentUserId && updates.userName !== currentUserName) {
+            console.log(`👤 Name change detected for user ${currentUserId}: "${currentUserName}" -> "${updates.userName}"`);
+
+            // Fetch all assignments for the event to find other instances of this user.
+            const allEventAssignmentsRef = ref(database, `events/${eventId}/assignments`);
+            const allAssignmentsSnapshot = await get(allEventAssignmentsRef);
+
+            if (allAssignmentsSnapshot.exists()) {
+              const allAssignments = allAssignmentsSnapshot.val();
+              
+              // Iterate through all assignments in the event.
+              for (const anId in allAssignments) {
+                // If an assignment belongs to the same user, add updates for it.
+                if (allAssignments[anId].userId === currentUserId) {
+                  const userAssignmentPath = `events/${eventId}/assignments/${anId}/userName`;
+                  dbUpdates[userAssignmentPath] = updates.userName;
+                  console.log(`🔄 Queued name update for assignment: ${anId}`);
+
+                  // Also, queue an update for the corresponding menu item's 'assignedToName'.
+                  const menuItemId = allAssignments[anId].menuItemId;
+                  if (menuItemId) {
+                    const menuItemNamePath = `events/${eventId}/menuItems/${menuItemId}/assignedToName`;
+                    dbUpdates[menuItemNamePath] = updates.userName;
+                    console.log(`🔗 Queued name update for linked menu item: ${menuItemId}`);
+                  }
+                }
+              }
+            }
+          } else {
+             // If only quantity/notes changed, we still need to update the specific assignment's name field just in case
+             // (This handles the case from the previous implementation)
+             dbUpdates[`${assignmentPath}/userName`] = updates.userName;
+             const menuItemId = assignmentData.menuItemId;
+             if (menuItemId) {
+                const menuItemNamePath = `events/${eventId}/menuItems/${menuItemId}/assignedToName`;
+                dbUpdates[menuItemNamePath] = updates.userName;
+             }
+          }
+        }
+      }
+
+      console.log('💾 Applying atomic batch updates:', dbUpdates);
+      // Perform a single, atomic update for all changes.
+      await update(ref(database), dbUpdates);
+
+      console.log('✅ Assignment(s) updated successfully');
       console.groupEnd();
     } catch (error) {
       console.error('❌ Error in updateAssignment:', error);
