@@ -11,7 +11,8 @@ import { useStore } from '../../store/useStore';
 interface PresetItem {
   name: string;
   category: MenuCategory;
-  quantity: number;
+  quantityRequired: number; // Changed from 'quantity'
+  unitType: 'units' | 'grams' | 'servings'; // Added unitType
   notes?: string;
   isRequired: boolean;
 }
@@ -33,30 +34,30 @@ interface PresetListsManagerProps {
 }
 
 const defaultSalonList: PresetItem[] = [
-  { name: 'שולחנות', category: 'other', quantity: 4, isRequired: true },
-  { name: 'כיסאות', category: 'other', quantity: 20, isRequired: true },
-  { name: 'מפות שולחן', category: 'other', quantity: 4, isRequired: false },
-  { name: 'צלחות', category: 'other', quantity: 25, isRequired: true },
-  { name: 'כוסות', category: 'other', quantity: 25, isRequired: true },
-  { name: 'סכו"ם', category: 'other', quantity: 25, isRequired: true },
-  { name: 'מגשים', category: 'other', quantity: 5, isRequired: false },
-  { name: 'קנקני מים', category: 'drink', quantity: 3, isRequired: true },
-  { name: 'מפיות', category: 'other', quantity: 50, isRequired: false },
+  { name: 'שולחנות', category: 'other', quantityRequired: 4, unitType: 'units', isRequired: true },
+  { name: 'כיסאות', category: 'other', quantityRequired: 20, unitType: 'units', isRequired: true },
+  { name: 'מפות שולחן', category: 'other', quantityRequired: 4, unitType: 'units', isRequired: false },
+  { name: 'צלחות', category: 'other', quantityRequired: 25, unitType: 'units', isRequired: true },
+  { name: 'כוסות', category: 'other', quantityRequired: 25, unitType: 'units', isRequired: true },
+  { name: 'סכו"ם', category: 'other', quantityRequired: 25, unitType: 'units', isRequired: true },
+  { name: 'מגשים', category: 'other', quantityRequired: 5, unitType: 'units', isRequired: false },
+  { name: 'קנקני מים', category: 'drink', quantityRequired: 3, unitType: 'units', isRequired: true },
+  { name: 'מפיות', category: 'other', quantityRequired: 50, unitType: 'units', isRequired: false },
 ];
 
 const defaultParticipantsList: PresetItem[] = [
-  { name: 'חלה', category: 'main', quantity: 2, isRequired: true },
-  { name: 'יין אדום', category: 'drink', quantity: 1, isRequired: true },
-  { name: 'יין לבן', category: 'drink', quantity: 1, isRequired: false },
-  { name: 'סלט ירוק', category: 'starter', quantity: 1, isRequired: false },
-  { name: 'חומוס', category: 'starter', quantity: 1, isRequired: false },
-  { name: 'טחינה', category: 'starter', quantity: 1, isRequired: false },
-  { name: 'פיתות', category: 'main', quantity: 10, isRequired: false },
-  { name: 'גבינות', category: 'starter', quantity: 1, isRequired: false },
-  { name: 'פירות', category: 'dessert', quantity: 1, isRequired: false },
-  { name: 'עוגה', category: 'dessert', quantity: 1, isRequired: false },
-  { name: 'מיץ', category: 'drink', quantity: 2, isRequired: false },
-  { name: 'מים', category: 'drink', quantity: 2, isRequired: true },
+  { name: 'חלה', category: 'main', quantityRequired: 2, unitType: 'units', isRequired: true },
+  { name: 'יין אדום', category: 'drink', quantityRequired: 1, unitType: 'units', isRequired: true },
+  { name: 'יין לבן', category: 'drink', quantityRequired: 1, unitType: 'units', isRequired: false },
+  { name: 'סלט ירוק', category: 'starter', quantityRequired: 10, unitType: 'servings', isRequired: false },
+  { name: 'חומוס', category: 'starter', quantityRequired: 500, unitType: 'grams', isRequired: false },
+  { name: 'טחינה', category: 'starter', quantityRequired: 500, unitType: 'grams', isRequired: false },
+  { name: 'פיתות', category: 'main', quantityRequired: 10, unitType: 'units', isRequired: false },
+  { name: 'גבינות', category: 'starter', quantityRequired: 500, unitType: 'grams', isRequired: false },
+  { name: 'פירות', category: 'dessert', quantityRequired: 1, unitType: 'units', isRequired: false },
+  { name: 'עוגה', category: 'dessert', quantityRequired: 1, unitType: 'units', isRequired: false },
+  { name: 'מיץ', category: 'drink', quantityRequired: 2, unitType: 'units', isRequired: false },
+  { name: 'מים', category: 'drink', quantityRequired: 2, unitType: 'units', isRequired: true },
 ];
 
 export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave }: PresetListsManagerProps) {
@@ -204,18 +205,14 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
   // Add item to editing list
   const addItemToEditingList = () => {
     if (!editingList) return;
-
     const newItem: PresetItem = {
       name: '',
       category: 'main',
-      quantity: 1,
+      quantityRequired: 1,
+      unitType: 'units',
       isRequired: false
     };
-
-    setEditingList({
-      ...editingList,
-      items: [...editingList.items, newItem]
-    });
+    setEditingList({ ...editingList, items: [...editingList.items, newItem] });
   };
 
   // Update item in editing list
@@ -327,9 +324,10 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
               <div className="space-y-3">
                 {editingList.items.map((item, index) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    {/* --- START OF CHANGES: Updated item editing form grid --- */}
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                       {/* Name */}
-                      <div>
+                      <div className="md:col-span-2">
                         <label className="block text-xs font-medium text-gray-700 mb-1">שם</label>
                         <input
                           type="text"
@@ -358,51 +356,64 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
                         </select>
                       </div>
 
-                      {/* Quantity */}
+                      {/* Quantity Required */}
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">כמות</label>
                         <input
                           type="number"
                           min="1"
-                          max="100"
-                          value={item.quantity}
-                          onChange={(e) => updateItemInEditingList(index, { quantity: parseInt(e.target.value) || 1 })}
+                          max="10000"
+                          value={(item as any).quantityRequired || (item as any).quantity} // Handles old and new items
+                          onChange={(e) => updateItemInEditingList(index, { quantityRequired: parseInt(e.target.value) || 1 })}
                           className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                           disabled={editingList.id.startsWith('default-')}
                         />
                       </div>
 
-                      {/* Required */}
+                      {/* Unit Type */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">חובה</label>
-                        <div className="flex items-center h-8">
-                          <input
-                            type="checkbox"
-                            checked={item.isRequired}
-                            onChange={(e) => updateItemInEditingList(index, { isRequired: e.target.checked })}
-                            className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                            disabled={editingList.id.startsWith('default-')}
-                          />
-                        </div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">יחידה</label>
+                        <select
+                          value={item.unitType || 'units'} // Handles old items without unitType
+                          onChange={(e) => updateItemInEditingList(index, { unitType: e.target.value as any })}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                          disabled={editingList.id.startsWith('default-')}
+                        >
+                          {unitTypeOptions.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
-                      {/* Actions */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">פעולות</label>
-                        {!editingList.id.startsWith('default-') && (
-                          <button
-                            onClick={() => removeItemFromEditingList(index)}
-                            disabled={isSubmitting}
-                            className="p-1 text-red-600 hover:text-red-700 disabled:opacity-50"
-                            title="הסר פריט"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                      {/* Actions (Required checkbox + Delete button) */}
+                      <div className="flex items-end space-x-2 rtl:space-x-reverse">
+                         <label className="flex items-center space-x-2 rtl:space-x-reverse">
+                            <input
+                              type="checkbox"
+                              checked={item.isRequired}
+                              onChange={(e) => updateItemInEditingList(index, { isRequired: e.target.checked })}
+                              className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                              disabled={editingList.id.startsWith('default-')}
+                            />
+                            <span className="text-xs font-medium text-gray-700">חובה</span>
+                         </label>
+                         {!editingList.id.startsWith('default-') && (
+                           <button
+                             onClick={() => removeItemFromEditingList(index)}
+                             disabled={isSubmitting}
+                             className="p-1 text-red-600 hover:text-red-700 disabled:opacity-50"
+                             title="הסר פריט"
+                           >
+                             <Trash2 className="h-4 w-4" />
+                           </button>
+                         )}
                       </div>
                     </div>
+                    {/* --- END OF CHANGES --- */}
 
-                    {/* Notes */}
+                    {/* Notes (remains the same) */}
                     <div className="mt-3">
                       <label className="block text-xs font-medium text-gray-700 mb-1">הערות</label>
                       <input
@@ -420,7 +431,7 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
             </div>
 
             {/* Actions */}
-            <div className="flex space-x-3 rtl:space-x-reverse">
+            <div className="flex space-x-3 rtl:space-x-reverse p-6">
               {!editingList.id.startsWith('default-') ? (
                 <button
                   onClick={() => handleUpdateList(editingList)}
@@ -428,15 +439,9 @@ export function PresetListsManager({ onClose, onSelectList, selectedItemsForSave
                   className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center"
                 >
                   {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
-                      שומר...
-                    </>
+                    <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>שומר...</>
                   ) : (
-                    <>
-                      <Save className="h-4 w-4 ml-2" />
-                      שמור רשימה
-                    </>
+                    <><Save className="h-4 w-4 ml-2" />שמור רשימה</>
                   )}
                 </button>
               ) : (
