@@ -334,7 +334,6 @@ export class FirebaseService {
    */
   static async addMenuItemAndAssign(
     eventId: string,
-    //שים לב: הטיפוס כאן עודכן כדי לשקף את המודל החדש
     itemData: Omit<MenuItem, 'id' | 'totalAssignedQuantity'>,
     assignToUserId: string | null,
     assignToUserName: string
@@ -355,12 +354,11 @@ export class FirebaseService {
       await runTransaction(eventRef, (currentEventData: ShishiEvent | null) => {
         if (currentEventData === null) {
           console.error('[addMenuItemAndAssign] Transaction aborted: Event does not exist.');
-          return; 
+          return;
         }
 
         console.log('[addMenuItemAndAssign] Transaction started.');
-
-        // --- לוגיקת בדיקת הרשאות (נשארת זהה) ---
+        
         const details = currentEventData.details;
         const userItemCount = currentEventData.userItemCounts?.[assignToUserId] || 0;
 
@@ -380,45 +378,35 @@ export class FirebaseService {
         if (!currentEventData.assignments) currentEventData.assignments = {};
         if (!currentEventData.userItemCounts) currentEventData.userItemCounts = {};
         
-        // --- START OF FIX ---
-
-        // הכנת אובייקט הפריט לפי המבנה החדש
         const finalItemData: any = {
           ...itemData,
-          // הכמות הראשונית ששובצה שווה לכמות שהמשתמש מביא
           totalAssignedQuantity: itemData.quantityRequired, 
         };
-        // מחיקת שדות מיותרים אם קיימים
-        delete finalItemData.assignedTo;
-        delete finalItemData.assignedToName;
-        delete finalItemData.assignedAt;
         if (!finalItemData.notes) {
           delete finalItemData.notes;
         }
 
         console.log('[addMenuItemAndAssign] 📋 New MenuItem object:', finalItemData);
 
-        // הכנת אובייקט השיבוץ
         const newAssignmentRef = push(ref(database, `events/${eventId}/assignments`));
-        // **התיקון כאן**: השתמש ב-itemData.quantityRequired כדי להגדיר את כמות השיבוץ
+        
+        // --- START OF THE FIX ---
         const assignmentData: Omit<Assignment, 'id' | 'eventId'> = {
           menuItemId: newItemId,
           userId: assignToUserId,
           userName: assignToUserName,
-          quantity: itemData.quantityRequired, // היה כאן הבאג
+          quantity: itemData.quantityRequired, // Correctly reads from quantityRequired
           notes: itemData.notes || '',
           status: 'confirmed',
           assignedAt: Date.now()
         };
+        // --- END OF THE FIX ---
+        
         console.log('[addMenuItemAndAssign] 📋 New Assignment object:', assignmentData);
 
-        // עדכון ישיר של הנתונים בטרנזקציה
         currentEventData.menuItems[newItemId] = finalItemData;
         currentEventData.assignments[newAssignmentRef.key!] = assignmentData;
         
-        // --- END OF FIX ---
-
-        // עדכון המונה (נשאר זהה)
         currentEventData.userItemCounts[assignToUserId] = userItemCount + 1;
         console.log(`[addMenuItemAndAssign] 📈 Incremented item count for user ${assignToUserId} to ${userItemCount + 1}`);
 
