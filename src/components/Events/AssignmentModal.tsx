@@ -6,11 +6,11 @@ import { FirebaseService } from '../../services/firebaseService';
 import { MenuItem, Assignment } from '../../types';
 import { User as FirebaseUser } from 'firebase/auth';
 import { toast } from 'react-hot-toast';
-import { X, Hash, MessageSquare, User as UserIcon } from 'lucide-react';
+import { X, Hash, MessageSquare, User as UserIcon, Edit } from 'lucide-react';
 
+// --- Updated Props interface ---
 interface AssignmentModalProps {
   item: MenuItem;
-  organizerId: string;
   eventId: string;
   user: FirebaseUser;
   onClose: () => void;
@@ -20,65 +20,102 @@ interface AssignmentModalProps {
 
 const AssignmentModal: React.FC<AssignmentModalProps> = ({
   item,
-  organizerId,
   eventId,
   user,
   onClose,
   isEdit = false,
   existingAssignment,
 }) => {
-  const [quantity, setQuantity] = useState(existingAssignment?.quantity || item.quantity);
-  const [notes, setNotes] = useState(existingAssignment?.notes || '');
+  // --- New Logic and State ---
+  const { assignments } = useStore();
+  
+  // Calculate remaining quantity
+  const totalAssigned = item.totalAssignedQuantity || 0;
+  const quantityInOtherAssignments = isEdit ? totalAssigned - (existingAssignment?.quantity || 0) : totalAssigned;
+  const maxQuantityAllowed = item.quantityRequired - quantityInOtherAssignments;
+
+  const [quantity, setQuantity] = useState(isEdit ? existingAssignment!.quantity : 1);
+const [notes, setNotes] = useState(existingAssignment?.notes || item.notes || '');
   const [isLoading, setIsLoading] = useState(false);
   const [participantName, setParticipantName] = useState('');
+  const [currentUserName, setCurrentUserName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
 
-  // בודק אם המשתמש כבר רשום כמשתתף באירוע
+  const unitTypeNames: { [key: string]: string } = {
+    units: 'יחידות', grams: 'גרם', servings: 'מנות'
+  };
+  const unitLabel = unitTypeNames[item.unitType] || item.unitType;
+  
+  // Logic to determine if user needs to provide a name
   useEffect(() => {
-    const participants = useStore.getState().currentEvent?.participants || {};
-    const isParticipant = !!participants[user.uid];
+    console.log('[AssignmentModal] useEffect for user name setup.');
+    const currentEvent = useStore.getState().currentEvent;
+    const existingParticipant = currentEvent?.participants?.[user.uid];
     
-    // הצג שדה שם רק אם זה משתמש אנונימי שעדיין לא הצטרף
-    if (user.isAnonymous && !isParticipant) {
+    if (existingParticipant) {
+      console.log(`[AssignmentModal] Found existing participant: ${existingParticipant.name}`);
+      setCurrentUserName(existingParticipant.name);
+      setShowNameInput(false);
+    } else if (user.isAnonymous) {
+      console.log('[AssignmentModal] Anonymous user, showing name input.');
       setShowNameInput(true);
+    } else {
+      const name = user.displayName || 'אורח';
+      console.log(`[AssignmentModal] Registered user, using name: ${name}`);
+      setCurrentUserName(name);
+      setShowNameInput(false);
     }
-  }, [user.uid, user.isAnonymous]);
+  }, [user.uid, user.isAnonymous, user.displayName]);
 
+  // Main submission logic
   const handleSubmit = async () => {
-    // ולידציה
-    if (showNameInput && !participantName.trim()) {
-      toast.error("כדי להשתבץ, יש להזין שם מלא.");
+    console.group('📋 [AssignmentModal] handleSubmit');
+    
+    // --- Validation ---
+    if ((showNameInput || isEditingName) && !participantName.trim()) {
+      toast.error("כדי להמשיך, יש להזין שם.");
+      console.groupEnd();
       return;
     }
     if (quantity <= 0) {
       toast.error("הכמות חייבת להיות גדולה מ-0.");
+      console.groupEnd();
+      return;
+    }
+    if (quantity > maxQuantityAllowed) {
+      toast.error(`הכמות המבוקשת חורגת מהכמות שנותרה (${maxQuantityAllowed} ${unitLabel}).`);
+      console.groupEnd();
       return;
     }
     
     setIsLoading(true);
-
     try {
-      let finalUserName = participantName.trim();
-      
-      // אם המשתמש הזין שם, רשום אותו כמשתתף באירוע
-      if (showNameInput && finalUserName) {
-        await FirebaseService.joinEvent(organizerId, eventId, user.uid, finalUserName);
-      } else {
-        // אם הוא כבר משתתף, קח את השם הקיים שלו
-        const existingParticipant = useStore.getState().currentEvent?.participants[user.uid];
-        finalUserName = existingParticipant?.name || user.displayName || 'אורח';
+      let finalUserName = currentUserName;
+
+      // Handle name update/creation
+      const newName = isEditingName ? participantName.trim() : (showNameInput ? participantName.trim() : null);
+      if (newName) {
+        console.log(`[AssignmentModal] Joining/updating event with name: ${newName}`);
+        await FirebaseService.joinEvent(eventId, user.uid, newName);
+        finalUserName = newName;
       }
+      
+      console.log(`[AssignmentModal] Final user name for assignment: ${finalUserName}`);
 
       if (isEdit && existingAssignment) {
-        // --- לוגיקת עריכה ---
-        await FirebaseService.updateAssignment(organizerId, eventId, existingAssignment.id, {
+        // --- Edit Logic ---
+        console.log('[AssignmentModal] Updating existing assignment...');
+        await FirebaseService.updateAssignment(eventId, existingAssignment.id, {
           quantity,
           notes: notes.trim(),
+          userName: finalUserName,
         });
         toast.success("השיבוץ עודכן בהצלחה!");
       } else {
-        // --- לוגיקת יצירת שיבוץ חדש ---
-        const assignmentData: Omit<Assignment, 'id'> = {
+        // --- Create Logic ---
+        console.log('[AssignmentModal] Creating new assignment...');
+        const assignmentData: Omit<Assignment, 'id' | 'eventId'> = {
           menuItemId: item.id,
           userId: user.uid,
           userName: finalUserName,
@@ -87,15 +124,16 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
           status: 'confirmed',
           assignedAt: Date.now(),
         };
-        await FirebaseService.createAssignment(organizerId, eventId, assignmentData);
-        toast.success(`שובצת בהצלחה לפריט: ${item.name}`);
+        await FirebaseService.createAssignment(eventId, assignmentData);
+        toast.success(`שובצת בהצלחה ל- ${item.name}`);
       }
       onClose();
     } catch (error: any) {
-      console.error("Error in assignment modal:", error);
+      console.error("[AssignmentModal] Error during submission:", error);
       toast.error(error.message || "אירעה שגיאה.");
     } finally {
       setIsLoading(false);
+      console.groupEnd();
     }
   };
 
@@ -114,50 +152,65 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
         <div className="p-6">
           <div className="bg-accent/10 p-4 rounded-lg mb-6 text-center">
             <p className="font-bold text-accent">{item.name}</p>
-            <p className="text-sm text-accent/80">כמות מוצעת: {item.quantity}</p>
+            <p className="text-sm text-accent/80">
+              נדרשים סה"כ: {item.quantityRequired} {unitLabel} (נותרו: {remainingQuantity})
+            </p>
           </div>
 
           <div className="space-y-4">
+            {/* Name display/edit section */}
+            {!showNameInput && (
+              isEditingName ? (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">שם חדש*</label>
+                  <div className="relative">
+                    <input type="text" value={participantName} onChange={e => setParticipantName(e.target.value)} placeholder="השם החדש שיוצג" className="w-full p-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" />
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">השיבוץ יירשם על שם:</p>
+                      <p className="text-blue-700 font-semibold">{currentUserName}</p>
+                    </div>
+                    <button onClick={() => setIsEditingName(true)} className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center"><Edit size={12} className="ml-1" /> שנה</button>
+                  </div>
+                </div>
+              )
+            )}
             {showNameInput && (
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-2">שם מלא*</label>
                 <div className="relative">
                   <UserIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                  <input 
-                    type="text" 
-                    value={participantName} 
-                    onChange={e => setParticipantName(e.target.value)} 
-                    placeholder="השם שיוצג לכולם" 
-                    className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent" 
-                  />
+                  <input type="text" value={participantName} onChange={e => setParticipantName(e.target.value)} placeholder="השם שיוצג לכולם" className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" />
                 </div>
-                <p className="text-xs text-neutral-500 mt-1">השם יישמר למכשיר זה עבור אירוע זה.</p>
               </div>
             )}
+
+            {/* Quantity input */}
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">כמות שאביא*</label>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">כמות שאביא ({unitLabel})*</label>
               <div className="relative">
                 <Hash className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
                 <input 
                   type="number" 
                   value={quantity} 
                   onChange={e => setQuantity(parseInt(e.target.value, 10) || 1)} 
-                  className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent" 
-                  min="1" 
+                  className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent"
+                  min="1"
+                  max={maxQuantityAllowed}
                 />
               </div>
             </div>
+
+            {/* Notes input */}
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">הערות (אופציונלי)</label>
               <div className="relative">
                 <MessageSquare className="absolute right-3 top-3 h-4 w-4 text-neutral-400" />
-                <textarea 
-                  value={notes} 
-                  onChange={e => setNotes(e.target.value)} 
-                  className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent" 
-                  rows={3} 
-                  placeholder="לדוגמה: ללא גלוטן, טבעוני..." 
-                />
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 pr-10 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent" rows={3} placeholder="לדוגמה: ללא גלוטן, טבעוני..." />
               </div>
             </div>
           </div>
@@ -165,12 +218,8 @@ const AssignmentModal: React.FC<AssignmentModalProps> = ({
         
         {/* Actions */}
         <div className="bg-neutral-100 px-6 py-4 flex justify-end space-x-3 rtl:space-x-reverse rounded-b-xl">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-neutral-200 text-neutral-700 hover:bg-neutral-300 font-medium transition-colors">
-            ביטול
-          </button>
-          <button onClick={handleSubmit} disabled={isLoading} className="px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent/90 disabled:bg-neutral-300 font-medium transition-colors">
-            {isLoading ? 'מעדכן...' : isEdit ? 'שמור שינויים' : 'אשר שיבוץ'}
-          </button>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-neutral-200 text-neutral-700 hover:bg-neutral-300 font-medium transition-colors">ביטול</button>
+          <button onClick={handleSubmit} disabled={isLoading} className="px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent/90 disabled:bg-neutral-300 font-medium transition-colors">{isLoading ? 'מעדכן...' : isEdit ? 'שמור שינויים' : 'אשר שיבוץ'}</button>
         </div>
       </div>
     </div>

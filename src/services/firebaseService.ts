@@ -329,13 +329,17 @@ export class FirebaseService {
   /**
    * מוסיף פריט חדש ומשבץ אותו למשתמש (אופציונלי)
    */
+/**
+   * מוסיף פריט חדש ומשבץ אותו למשתמש באופן אטומי באמצעות טרנזקציה.
+   */
   static async addMenuItemAndAssign(
     eventId: string,
-    itemData: Omit<MenuItem, 'id'>,
+    //שים לב: הטיפוס כאן עודכן כדי לשקף את המודל החדש
+    itemData: Omit<MenuItem, 'id' | 'totalAssignedQuantity'>,
     assignToUserId: string | null,
     assignToUserName: string
   ): Promise<string> {
-    console.group('🍽️➕👤 FirebaseService.addMenuItemAndAssign (Transactional)');
+    console.group('🍽️➕👤 FirebaseService.addMenuItemAndAssign (Transactional V3)');
     console.log('📥 Input parameters:', { eventId, itemData, assignToUserId, assignToUserName });
 
     if (!assignToUserId) {
@@ -350,80 +354,78 @@ export class FirebaseService {
     try {
       await runTransaction(eventRef, (currentEventData: ShishiEvent | null) => {
         if (currentEventData === null) {
-          // אם האירוע לא קיים, הטרנזקציה תיכשל והשגיאה תתפס ב-catch.
-          // אין צורך לזרוק שגיאה מכאן.
+          console.error('[addMenuItemAndAssign] Transaction aborted: Event does not exist.');
           return; 
         }
 
-        console.log('🔧 Transaction started. Current event data:', currentEventData);
+        console.log('[addMenuItemAndAssign] Transaction started.');
 
-        // --- לוגיקת הבדיקות החדשה ---
+        // --- לוגיקת בדיקת הרשאות (נשארת זהה) ---
         const details = currentEventData.details;
         const userItemCount = currentEventData.userItemCounts?.[assignToUserId] || 0;
 
-        // בדיקה #1: האם למנהל מותר להוסיף פריטים
-        // (הערה: לוגיקה זו נאכפת גם ב-Security Rules)
-        if (details.allowUserItems === false) { // בדיקה מפורשת ל-false
+        if (details.allowUserItems === false) {
           throw new Error('המארגן לא איפשר הוספת פריטים באירוע זה.');
         }
-
-        // בדיקה #2: האם המשתמש עבר את המגבלה
         if (userItemCount >= (details.userItemLimit ?? 3)) {
           throw new Error(`הגעת למגבלת ${details.userItemLimit ?? 3} הפריטים שניתן להוסיף.`);
         }
-        console.log(`✅ User count validation passed (${userItemCount} < ${details.userItemLimit ?? 3})`);
+        console.log(`[addMenuItemAndAssign] ✅ User count validation passed (${userItemCount} < ${details.userItemLimit ?? 3})`);
 
-        // --- שמירה על הלוגיקה המקורית ליצירת הנתונים ---
-        console.log('📝 Creating new item reference...');
         const newItemRef = push(ref(database, `events/${eventId}/menuItems`));
-        newItemId = newItemRef.key!; // שמירת המזהה מחוץ לטרנזקציה
-        console.log('🆔 Generated item ID:', newItemId);
+        newItemId = newItemRef.key!;
+        console.log(`[addMenuItemAndAssign] 🆔 Generated new item ID: ${newItemId}`);
 
-        // וידוא מבנה נתונים תקין (מחליף את ensureEventStructure)
         if (!currentEventData.menuItems) currentEventData.menuItems = {};
         if (!currentEventData.assignments) currentEventData.assignments = {};
-        if (!currentEventData.participants) currentEventData.participants = {};
         if (!currentEventData.userItemCounts) currentEventData.userItemCounts = {};
-        console.log('✅ Event structure ensured');
+        
+        // --- START OF FIX ---
 
-        // הכנת אובייקט הפריט
+        // הכנת אובייקט הפריט לפי המבנה החדש
         const finalItemData: any = {
           ...itemData,
-          id: newItemId,
-          assignedTo: assignToUserId,
-          assignedToName: assignToUserName,
-          assignedAt: Date.now()
+          // הכמות הראשונית ששובצה שווה לכמות שהמשתמש מביא
+          totalAssignedQuantity: itemData.quantityRequired, 
         };
+        // מחיקת שדות מיותרים אם קיימים
+        delete finalItemData.assignedTo;
+        delete finalItemData.assignedToName;
+        delete finalItemData.assignedAt;
         if (!finalItemData.notes) {
           delete finalItemData.notes;
         }
 
+        console.log('[addMenuItemAndAssign] 📋 New MenuItem object:', finalItemData);
+
         // הכנת אובייקט השיבוץ
-        console.log('📋 Creating separate assignment...');
         const newAssignmentRef = push(ref(database, `events/${eventId}/assignments`));
-        const assignmentData: Omit<Assignment, 'id'> = {
+        // **התיקון כאן**: השתמש ב-itemData.quantityRequired כדי להגדיר את כמות השיבוץ
+        const assignmentData: Omit<Assignment, 'id' | 'eventId'> = {
           menuItemId: newItemId,
           userId: assignToUserId,
           userName: assignToUserName,
-          quantity: itemData.quantity,
+          quantity: itemData.quantityRequired, // היה כאן הבאג
           notes: itemData.notes || '',
           status: 'confirmed',
           assignedAt: Date.now()
         };
-        console.log('📋 Assignment data:', assignmentData);
+        console.log('[addMenuItemAndAssign] 📋 New Assignment object:', assignmentData);
 
-        // --- עדכון ישיר של הנתונים בטרנזקציה ---
+        // עדכון ישיר של הנתונים בטרנזקציה
         currentEventData.menuItems[newItemId] = finalItemData;
         currentEventData.assignments[newAssignmentRef.key!] = assignmentData;
         
-        // --- עדכון המונה החדש ---
+        // --- END OF FIX ---
+
+        // עדכון המונה (נשאר זהה)
         currentEventData.userItemCounts[assignToUserId] = userItemCount + 1;
-        console.log(`📈 Incremented item count for user ${assignToUserId} to ${userItemCount + 1}`);
+        console.log(`[addMenuItemAndAssign] 📈 Incremented item count for user ${assignToUserId} to ${userItemCount + 1}`);
 
         return currentEventData;
       });
 
-      console.log('✅ Transaction committed successfully!');
+      console.log('✅ [addMenuItemAndAssign] Transaction committed successfully!');
       console.groupEnd();
       if (!newItemId) {
         throw new Error("Failed to generate a new item ID during the transaction.");
@@ -433,7 +435,7 @@ export class FirebaseService {
     } catch (error) {
       console.error('❌ Error in addMenuItemAndAssign Transaction:', error);
       console.groupEnd();
-      throw error; // זריקת השגיאה הלאה כדי ש-toast יציג אותה
+      throw error;
     }
   }
   /**
@@ -596,167 +598,217 @@ export class FirebaseService {
   /**
    * יוצר שיבוץ חדש
    */
+  /**
+   * יוצר שיבוץ חדש תוך שימוש בטרנזקציה כדי להבטיח עקביות נתונים.
+   */
   static async createAssignment(
     eventId: string,
     assignmentData: Omit<Assignment, 'id'>
   ): Promise<string> {
-    console.group('📋 FirebaseService.createAssignment');
+    console.group('📋 FirebaseService.createAssignment (Transactional)');
     console.log('📥 Input parameters:', { eventId, assignmentData });
-    
+
+    const eventRef = ref(database, `events/${eventId}`);
+    const newAssignmentRef = push(ref(database, `events/${eventId}/assignments`));
+    const newAssignmentId = newAssignmentRef.key!;
+
     try {
-      await this.ensureEventStructure(eventId);
-      
-      // בדיקה שהפריט לא כבר משובץ
-      const menuItemRef = ref(database, `events/${eventId}/menuItems/${assignmentData.menuItemId}`);
-      const snapshot = await get(menuItemRef);
-      
-      if (snapshot.val()?.assignedTo) {
-        throw new Error('מצטערים, מישהו אחר כבר הספיק לשבץ את הפריט הזה');
-      }
-      
-      const newAssignmentRef = push(ref(database, `events/${eventId}/assignments`));
-      const updates: { [key: string]: any } = {};
-      
-      // הוספת השיבוץ
-      updates[`events/${eventId}/assignments/${newAssignmentRef.key}`] = assignmentData;
-      
-      // עדכון הפריט כמשובץ
-      updates[`events/${eventId}/menuItems/${assignmentData.menuItemId}/assignedTo`] = assignmentData.userId;
-      updates[`events/${eventId}/menuItems/${assignmentData.menuItemId}/assignedToName`] = assignmentData.userName;
-      updates[`events/${eventId}/menuItems/${assignmentData.menuItemId}/assignedAt`] = Date.now();
-      
-      await update(ref(database), updates);
-      console.log('✅ Assignment created successfully');
+      await runTransaction(eventRef, (currentEventData: ShishiEvent | null) => {
+        // אם האירוע לא קיים, בטל את הטרנזקציה
+        if (currentEventData === null) {
+          console.error('[createAssignment] Transaction aborted: Event does not exist.');
+          throw new Error("האירוע אינו קיים.");
+        }
+
+        console.log('[createAssignment] Transaction started. Current event data received.');
+        
+        const menuItemId = assignmentData.menuItemId;
+        const menuItem = currentEventData.menuItems?.[menuItemId];
+
+        if (!menuItem) {
+          console.error(`[createAssignment] Transaction aborted: MenuItem with ID ${menuItemId} not found.`);
+          throw new Error("הפריט המבוקש אינו קיים. ייתכן שמישהו אחר מחק אותו.");
+        }
+
+        // ודא שהשדות החדשים קיימים, עם ערכי ברירת מחדל אם לא
+        const quantityRequired = menuItem.quantityRequired || 0;
+        const totalAssignedQuantity = menuItem.totalAssignedQuantity || 0;
+        
+        console.log(`[createAssignment] Validating quantities for item "${menuItem.name}"...`);
+        console.log(`[createAssignment] -> Required: ${quantityRequired}, Already Assigned: ${totalAssignedQuantity}, User wants to assign: ${assignmentData.quantity}`);
+        
+        // ולידציה: בדוק אם הכמות החדשה לא חורגת מהמותר
+        if (totalAssignedQuantity + assignmentData.quantity > quantityRequired) {
+          const remaining = quantityRequired - totalAssignedQuantity;
+          console.error(`[createAssignment] Transaction aborted: Quantity exceeds limit. Remaining: ${remaining}`);
+          throw new Error(`לא ניתן לשבץ כמות זו. נותרו ${remaining} ${menuItem.unitType} פנויים.`);
+        }
+        
+        console.log('[createAssignment] ✅ Validation successful.');
+
+        // ודא שהמבנים קיימים לפני הכתיבה
+        if (!currentEventData.assignments) {
+          currentEventData.assignments = {};
+        }
+
+        // 1. הוסף את השיבוץ החדש
+        currentEventData.assignments[newAssignmentId] = assignmentData;
+        console.log(`[createAssignment] -> Staged new assignment with ID: ${newAssignmentId}`);
+
+        // 2. עדכן את הכמות המשובצת על הפריט
+        currentEventData.menuItems[menuItemId].totalAssignedQuantity = totalAssignedQuantity + assignmentData.quantity;
+        console.log(`[createAssignment] -> Staged item update. New totalAssignedQuantity: ${currentEventData.menuItems[menuItemId].totalAssignedQuantity}`);
+
+        return currentEventData;
+      });
+
+      console.log('✅ [createAssignment] Transaction committed successfully!');
       console.groupEnd();
-      
-      return newAssignmentRef.key!;
+      return newAssignmentId;
+
     } catch (error) {
-      console.error('❌ Error in createAssignment:', error);
+      console.error('❌ Error in createAssignment transaction:', error);
+      console.groupEnd();
+      // זרוק את השגיאה הלאה כדי שה-UI יוכל להציג אותה
+      throw error;
+    }
+  }
+
+
+  /**
+   * מעדכן שיבוץ קיים. אם שם המשתמש משתנה, הפונקציה תעדכן את השם בכל השיבוצים והפריטים של אותו משתמש באירוע הנוכחי.
+   */
+/**
+   * מעדכן שיבוץ קיים באמצעות טרנזקציה, תוך וידוא עקביות של סך הכמות.
+   */
+  static async updateAssignment(
+    eventId: string,
+    assignmentId: string,
+    updates: { quantity: number; notes?: string; userName?: string }
+  ): Promise<void> {
+    console.group('📝 FirebaseService.updateAssignment (Transactional V2)');
+    console.log('📥 Input parameters:', { eventId, assignmentId, updates });
+
+    const eventRef = ref(database, `events/${eventId}`);
+
+    try {
+      await runTransaction(eventRef, (currentEventData: ShishiEvent | null) => {
+        if (!currentEventData?.assignments?.[assignmentId]) {
+          console.warn('[updateAssignment] Transaction aborted: Event or Assignment not found.');
+          return; // No need to throw, just exit.
+        }
+        
+        console.log('[updateAssignment] Transaction started.');
+
+        const assignmentToUpdate = currentEventData.assignments[assignmentId];
+        const menuItemId = assignmentToUpdate.menuItemId;
+        const menuItem = currentEventData.menuItems?.[menuItemId];
+
+        if (!menuItem) {
+          console.error(`[updateAssignment] Transaction aborted: Corresponding MenuItem ${menuItemId} not found.`);
+          throw new Error("פריט התפריט המשויך לשיבוץ זה לא נמצא.");
+        }
+
+        const oldQuantity = assignmentToUpdate.quantity;
+        const newQuantity = updates.quantity;
+        const quantityDifference = newQuantity - oldQuantity;
+        
+        const quantityRequired = menuItem.quantityRequired || 0;
+        const currentTotalAssigned = menuItem.totalAssignedQuantity || 0;
+        const newTotalAssigned = currentTotalAssigned + quantityDifference;
+
+        console.log(`[updateAssignment] Quantity validation for item "${menuItem.name}"...`);
+        console.log(`[updateAssignment] -> Required: ${quantityRequired}, Current Total: ${currentTotalAssigned}, New Total would be: ${newTotalAssigned}`);
+
+        // ולידציה: ודא שהכמות החדשה לא חורגת מהמגבלה
+        if (newTotalAssigned > quantityRequired) {
+          const remaining = quantityRequired - currentTotalAssigned;
+          console.error(`[updateAssignment] Transaction aborted: Quantity exceeds limit. Only ${remaining} remaining.`);
+          throw new Error(`לא ניתן לשבץ כמות זו. נותרו ${remaining} ${menuItem.unitType} פנויים.`);
+        }
+        
+        console.log('[updateAssignment] ✅ Validation successful.');
+
+        // 1. עדכן את השיבוץ הספציפי
+        currentEventData.assignments[assignmentId].quantity = newQuantity;
+        currentEventData.assignments[assignmentId].notes = updates.notes || '';
+        currentEventData.assignments[assignmentId].updatedAt = Date.now();
+        console.log(`[updateAssignment] -> Staged update for assignment: ${assignmentId}`);
+
+        // 2. עדכן את סך הכמות על הפריט
+        currentEventData.menuItems[menuItemId].totalAssignedQuantity = newTotalAssigned;
+        console.log(`[updateAssignment] -> Staged item update. New totalAssignedQuantity: ${newTotalAssigned}`);
+        
+        // הערה: עדכון שם משתמש הוסר מכאן בכוונה כדי לשמור על טרנזקציה פשוטה וממוקדת.
+        // טיפול בעדכון שם משתמש בכל המקומות ידרוש פונקציה ייעודית.
+
+        return currentEventData;
+      });
+
+      console.log('✅ [updateAssignment] Transaction committed successfully!');
+      console.groupEnd();
+    } catch (error) {
+      console.error('❌ Error in updateAssignment transaction:', error);
       console.groupEnd();
       throw error;
     }
   }
 
-// src/services/firebaseService.ts
-
-/**
-   * מעדכן שיבוץ קיים. אם שם המשתמש משתנה, הפונקציה תעדכן את השם בכל השיבוצים והפריטים של אותו משתמש באירוע הנוכחי.
-   */
-static async updateAssignment(
-  eventId: string,
-  assignmentId: string,
-  updates: { quantity: number; notes?: string; userName?: string }
-): Promise<void> {
-  console.group('📝 FirebaseService.updateAssignment (Enhanced)');
-  console.log('📥 Input parameters:', { eventId, assignmentId, updates });
-  
-  try {
-    const dbUpdates: { [key: string]: any } = {};
-    const assignmentPath = `events/${eventId}/assignments/${assignmentId}`;
-
-    // Step 1: Prepare the basic updates for the specific assignment being edited.
-    dbUpdates[`${assignmentPath}/quantity`] = updates.quantity;
-    dbUpdates[`${assignmentPath}/notes`] = updates.notes || null; // Use null for empty notes
-    dbUpdates[`${assignmentPath}/updatedAt`] = Date.now();
-
-    // Step 2: Check if the user's name needs to be updated across the entire event.
-    if (updates.userName) {
-      const assignmentRef = ref(database, assignmentPath);
-      const assignmentSnapshot = await get(assignmentRef);
-
-      if (assignmentSnapshot.exists()) {
-        const assignmentData = assignmentSnapshot.val();
-        const currentUserId = assignmentData.userId;
-        const currentUserName = assignmentData.userName;
-
-        // Only proceed if the name has actually changed.
-        if (currentUserId && updates.userName !== currentUserName) {
-          console.log(`👤 Name change detected for user ${currentUserId}: "${currentUserName}" -> "${updates.userName}"`);
-
-          // Fetch all event data to find other instances of this user.
-          const eventRef = ref(database, `events/${eventId}`);
-          const eventSnapshot = await get(eventRef);
-
-          if (eventSnapshot.exists()) {
-            const eventData = eventSnapshot.val();
-            const allAssignments = eventData.assignments || {};
-            const allMenuItems = eventData.menuItems || {};
-            
-            // Iterate through all assignments in the event.
-            for (const anId in allAssignments) {
-              if (allAssignments[anId].userId === currentUserId) {
-                dbUpdates[`events/${eventId}/assignments/${anId}/userName`] = updates.userName;
-                console.log(`🔄 Queued name update for assignment: ${anId}`);
-
-                const menuItemId = allAssignments[anId].menuItemId;
-                if (menuItemId) {
-                  dbUpdates[`events/${eventId}/menuItems/${menuItemId}/assignedToName`] = updates.userName;
-                  console.log(`🔗 Queued name update for linked menu item (assignedToName): ${menuItemId}`);
-                }
-              }
-            }
-
-            // *** START OF THE FIX ***
-            // Iterate through all menu items to update creatorName.
-            for (const menuItemId in allMenuItems) {
-              if (allMenuItems[menuItemId].creatorId === currentUserId) {
-                dbUpdates[`events/${eventId}/menuItems/${menuItemId}/creatorName`] = updates.userName;
-                console.log(`✍️ Queued name update for created menu item (creatorName): ${menuItemId}`);
-              }
-            }
-            // *** END OF THE FIX ***
-          }
-        } else {
-           // If only quantity/notes changed, or name is the same, update just in case.
-           dbUpdates[`${assignmentPath}/userName`] = updates.userName;
-           const menuItemId = assignmentData.menuItemId;
-           if (menuItemId) {
-              dbUpdates[`events/${eventId}/menuItems/${menuItemId}/assignedToName`] = updates.userName;
-           }
-        }
-      }
-    }
-
-    console.log('💾 Applying atomic batch updates:', dbUpdates);
-    // Perform a single, atomic update for all changes.
-    await update(ref(database), dbUpdates);
-
-    console.log('✅ Assignment(s) updated successfully');
-    console.groupEnd();
-  } catch (error) {
-    console.error('❌ Error in updateAssignment:', error);
-    console.groupEnd();
-    throw error;
-  }
-}
   /**
    * מבטל שיבוץ
+   */
+/**
+   * מבטל שיבוץ קיים באמצעות טרנזקציה.
    */
   static async cancelAssignment(
     eventId: string,
     assignmentId: string,
     menuItemId: string
   ): Promise<void> {
-    console.group('❌ FirebaseService.cancelAssignment');
+    console.group('❌ FirebaseService.cancelAssignment (Transactional)');
     console.log('📥 Input parameters:', { eventId, assignmentId, menuItemId });
-    
+
+    const eventRef = ref(database, `events/${eventId}`);
+
     try {
-      const updates: { [key: string]: null } = {};
-      
-      // מחיקת השיבוץ
-      updates[`events/${eventId}/assignments/${assignmentId}`] = null;
-      
-      // הסרת השיבוץ מהפריט
-      updates[`events/${eventId}/menuItems/${menuItemId}/assignedTo`] = null;
-      updates[`events/${eventId}/menuItems/${menuItemId}/assignedToName`] = null;
-      updates[`events/${eventId}/menuItems/${menuItemId}/assignedAt`] = null;
-      
-      console.log('💾 Updates to apply:', updates);
-      await update(ref(database), updates);
-      console.log('✅ Assignment cancelled successfully');
+      await runTransaction(eventRef, (currentEventData: ShishiEvent | null) => {
+        // אם האירוע, השיבוץ או הפריט לא קיימים, אין מה לעשות.
+        if (
+          !currentEventData ||
+          !currentEventData.assignments?.[assignmentId] ||
+          !currentEventData.menuItems?.[menuItemId]
+        ) {
+          console.warn('[cancelAssignment] Transaction aborted: Event, Assignment, or MenuItem not found.');
+          // אם לא נמצא, אין צורך לזרוק שגיאה, פשוט אין מה למחוק.
+          return;
+        }
+
+        console.log('[cancelAssignment] Transaction started. Current event data received.');
+
+        const assignmentToRemove = currentEventData.assignments[assignmentId];
+        const quantityToRemove = assignmentToRemove.quantity;
+        const menuItem = currentEventData.menuItems[menuItemId];
+        const currentTotalAssigned = menuItem.totalAssignedQuantity || 0;
+
+        console.log(`[cancelAssignment] -> Assignment to remove:`, assignmentToRemove);
+        console.log(`[cancelAssignment] -> Quantity to remove: ${quantityToRemove}`);
+        console.log(`[cancelAssignment] -> Current total assigned for item "${menuItem.name}": ${currentTotalAssigned}`);
+
+        // 1. מחק את השיבוץ
+        delete currentEventData.assignments[assignmentId];
+        console.log(`[cancelAssignment] -> Staged deletion of assignment: ${assignmentId}`);
+
+        // 2. עדכן (הפחת) את הכמות הכוללת המשובצת על הפריט
+        currentEventData.menuItems[menuItemId].totalAssignedQuantity = Math.max(0, currentTotalAssigned - quantityToRemove);
+        console.log(`[cancelAssignment] -> Staged item update. New totalAssignedQuantity: ${currentEventData.menuItems[menuItemId].totalAssignedQuantity}`);
+
+        return currentEventData;
+      });
+
+      console.log('✅ [cancelAssignment] Transaction committed successfully!');
       console.groupEnd();
     } catch (error) {
-      console.error('❌ Error in cancelAssignment:', error);
+      console.error('❌ Error in cancelAssignment transaction:', error);
       console.groupEnd();
       throw error;
     }
@@ -968,11 +1020,14 @@ static async updateAssignment(
   /**
    * מוודא עקביות נתונים באירוע
    */
+/**
+   * מוודא עקביות נתונים באירוע, מותאם למודל של שיבוצים מרובים.
+   */
   static async validateEventData(eventId: string): Promise<{
     isValid: boolean;
     issues: string[];
   }> {
-    console.group('🔍 FirebaseService.validateEventData');
+    console.group('🔍 FirebaseService.validateEventData (V2)');
     console.log('📥 Input parameters:', { eventId });
     
     const issues: string[] = [];
@@ -988,42 +1043,67 @@ static async updateAssignment(
       
       const eventData = eventSnapshot.val();
       
-      // בדיקת מבנה בסיסי
+      // בדיקת מבנה בסיסי (נשארת זהה)
       if (!eventData.details) issues.push('חסרים פרטי האירוע');
       if (!eventData.organizerId) issues.push('חסר מזהה מארגן');
       if (!eventData.organizerName) issues.push('חסר שם מארגן');
       
-      // בדיקת עקביות שיבוצים
       const menuItems = eventData.menuItems || {};
       const assignments = eventData.assignments || {};
       
+      // --- START OF CHANGES ---
+
+      // בדיקה #1: ודא שכל שיבוץ מקושר לפריט קיים
+      console.log('[validateEventData] 🕵️‍♂️ Running check #1: All assignments must link to an existing menu item.');
       Object.entries(assignments).forEach(([assignmentId, assignment]: [string, any]) => {
-        const menuItem = menuItems[assignment.menuItemId];
-        if (!menuItem) {
-          issues.push(`שיבוץ ${assignmentId} מצביע על פריט שלא קיים: ${assignment.menuItemId}`);
-        } else if (menuItem.assignedTo !== assignment.userId) {
-          issues.push(`אי-עקביות בשיבוץ ${assignmentId}: המשתמש בפריט (${menuItem.assignedTo}) שונה מהמשתמש בשיבוץ (${assignment.userId})`);
+        if (!menuItems[assignment.menuItemId]) {
+          const issue = `שיבוץ ${assignmentId} מקושר לפריט לא קיים: ${assignment.menuItemId}`;
+          console.warn(`[validateEventData] ⚠️ ISSUE: ${issue}`);
+          issues.push(issue);
         }
       });
 
+      // בדיקה #2: ודא שהשדה totalAssignedQuantity בכל פריט תואם לסך הכמויות מהשיבוצים
+      console.log('[validateEventData] 🕵️‍♂️ Running check #2: totalAssignedQuantity must match the sum of assignment quantities.');
       Object.entries(menuItems).forEach(([menuItemId, menuItem]: [string, any]) => {
-        if(menuItem.assignedTo) {
-          const assignmentExists = Object.values(assignments).some((a: any) => a.menuItemId === menuItemId && a.userId === menuItem.assignedTo);
-          if (!assignmentExists) {
-            issues.push(`פריט ${menuItemId} משובץ למשתמש ${menuItem.assignedToName} אך אין שיבוץ תואם`);
-          }
+        // חשב את הסכום האמיתי מהשיבוצים
+        const calculatedSum = Object.values(assignments)
+          .filter((a: any) => a.menuItemId === menuItemId)
+          .reduce((sum: number, a: any) => sum + (a.quantity || 0), 0);
+        
+        const storedSum = menuItem.totalAssignedQuantity || 0;
+
+        if (calculatedSum !== storedSum) {
+          const issue = `פריט "${menuItem.name}" (${menuItemId}): סך השיבוצים המאוחסן (${storedSum}) אינו תואם לסכום המחושב מהשיבוצים (${calculatedSum}).`;
+          console.warn(`[validateEventData] ⚠️ ISSUE: ${issue}`);
+          issues.push(issue);
         }
       });
+
+      // בדיקה #3: ודא שסך הכמות המשובצת אינו חורג מהכמות הנדרשת
+      console.log('[validateEventData] 🕵️‍♂️ Running check #3: totalAssignedQuantity must not exceed quantityRequired.');
+      Object.entries(menuItems).forEach(([menuItemId, menuItem]: [string, any]) => {
+        const totalAssigned = menuItem.totalAssignedQuantity || 0;
+        const required = menuItem.quantityRequired || 0;
+
+        if (totalAssigned > required) {
+          const issue = `פריט "${menuItem.name}" (${menuItemId}): הכמות המשובצת (${totalAssigned}) חורגת מהכמות הנדרשת (${required}).`;
+          console.warn(`[validateEventData] ⚠️ ISSUE: ${issue}`);
+          issues.push(issue);
+        }
+      });
+
+      // --- END OF CHANGES ---
       
       const isValid = issues.length === 0;
-      console.log('🔍 Validation result:', { isValid, issues });
+      console.log('🔍 Validation result:', { isValid, issues: issues.length > 0 ? issues : 'No issues found.' });
       console.groupEnd();
       
       return { isValid, issues };
     } catch (error) {
       console.error('❌ Error validating event data:', error);
       console.groupEnd();
-      return { isValid: false, issues: ['שגיאה בבדיקת הנתונים'] };
+      return { isValid: false, issues: ['שגיאה כללית בבדיקת הנתונים'] };
     }
   }
 }

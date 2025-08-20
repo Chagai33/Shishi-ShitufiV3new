@@ -24,26 +24,35 @@ export interface EventDetails {
   userItemLimit?: number;   // מה המגבלה למשתמש
 }
 
+// --- START OF CHANGES ---
+
 /**
  * מייצג פריט בתפריט של אירוע ספציפי.
- * שימו לב שכבר אין צורך בשדה eventId, כי הפריט מקונן תחת האירוע.
+ * פריט מייצג "צורך" עם כמות ויחידת מידה, ומספר משתמשים יכולים להירשם אליו.
  */
 export interface MenuItem {
   id: string;
-  eventId: string; // הוספנו את מזהה האירוע לנוחות
+  eventId: string;
   name: string;
   category: 'starter' | 'main' | 'dessert' | 'drink' | 'other' | 'equipment';
-  quantity: number;
   notes?: string;
   isRequired: boolean;
   creatorId: string;
   creatorName: string;
   createdAt: number;
-  // שדות השיבוץ נשמרים ישירות על הפריט לגישה נוחה
-  assignedTo?: string;
-  assignedToName?: string;
-  assignedAt?: number;
+  
+  // שדות הכמות החדשים
+  quantityRequired: number; // שינוי שם מ-quantity
+  unitType: 'units' | 'grams' | 'servings'; // שדה חדש לסוג היחידה
+  totalAssignedQuantity: number; // שדה חדש לסכימת הכמות ששובצה
+  
+  // ⛔️ שדות שהוסרו מכיוון שהם תומכים בשיבוץ יחיד בלבד
+  // assignedTo?: string;
+  // assignedToName?: string;
+  // assignedAt?: number;
 }
+
+// --- END OF CHANGES ---
 
 
 /**
@@ -51,11 +60,11 @@ export interface MenuItem {
  */
 export interface Assignment {
   id: string;
-  eventId: string; // הוספנו את מזהה האירוע
+  eventId: string;
   menuItemId: string;
   userId: string;
   userName: string;
-  quantity: number;
+  quantity: number; // הכמות שהמשתמש הספציפי מביא (בהתאם ל-unitType של הפריט)
   notes?: string;
   status: 'confirmed' | 'pending' | 'completed';
   assignedAt: number;
@@ -74,10 +83,9 @@ export interface Participant {
 
 /**
  * מייצג את האובייקט המלא של אירוע, כפי שהוא מאוחסן בבסיס הנתונים.
- * זהו האובייקט הראשי שיכיל את כל המידע על אירוע בודד במודל השטוח.
  */
 export interface ShishiEvent {
-  id: string; // המזהה הייחודי של האירוע
+  id: string;
   organizerId: string;
   organizerName: string;
   createdAt: number;
@@ -87,13 +95,12 @@ export interface ShishiEvent {
   assignments: { [key: string]: Omit<Assignment, 'id' | 'eventId'> };
   participants: { [key: string]: Omit<Participant, 'id'> };
   userItemCounts?: { [key: string]: number };
-
 }
 
 // טיפוסים עבור ה-Store הגלובלי (Zustand)
 export interface AppState {
-  user: User | null; // המשתמש המחובר (תמיד יהיה מארגן)
-  organizerEvents: ShishiEvent[]; // רשימת האירועים של המארגן (עבור הדאשבורד)
-  currentEvent: ShishiEvent | null; // האירוע הספציפי שבו המשתמש צופה כרגע
+  user: User | null;
+  organizerEvents: ShishiEvent[];
+  currentEvent: ShishiEvent | null;
   isLoading: boolean;
 }

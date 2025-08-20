@@ -415,6 +415,11 @@ const EventPage: React.FC = () => {
             }
         } catch (error) { toast.error("שגיאה בהצטרפות לאירוע."); } finally { setIsJoining(false); }
     }, [eventId, localUser, itemToAssignAfterJoin]);
+
+    const handleCategoryClick = (category: string) => { setSelectedCategory(category); setView('items'); };
+
+    const handleBackToCategories = () => { setView('categories'); setSelectedCategory(null); setSearchTerm(''); };
+
     
     const handleAssignClick = (item: MenuItemType) => {
         if (!localUser) return;
@@ -427,43 +432,58 @@ const EventPage: React.FC = () => {
         }
     };
     
-    const handleCancelClick = async (assignment: AssignmentType) => {
-    if (!eventId || !localUser) return;
+    const handleCancelClick = async (assignmentToCancel: AssignmentType) => {
+        console.log('[EventPage] handleCancelClick triggered for assignment:', assignmentToCancel);
+        if (!eventId || !localUser) return;
 
-    const item = menuItems.find(i => i.id === assignment.menuItemId);
-    if (!item) {
-        toast.error("הפריט לא נמצא");
-        return;
-    }
+        // --- START OF CHANGES: Re-integrating item deletion logic ---
+        const item = menuItems.find(i => i.id === assignmentToCancel.menuItemId);
+        if (!item) {
+            toast.error("הפריט המשויך לשיבוץ זה לא נמצא.");
+            console.error(`[EventPage] Could not find item with ID ${assignmentToCancel.menuItemId}`);
+            return;
+        }
 
-    const isCreator = item.creatorId === localUser.uid;
+        const isCreator = item.creatorId === localUser.uid;
 
-    if (isCreator) {
-        // המשתמש הוא גם היוצר וגם המשבץ - מוחקים את הפריט
-        if (window.confirm("פעולה זו תמחק גם את הפריט וגם את השיבוץ")) {
-            try {
-                await FirebaseService.deleteMenuItem(eventId, item.id);
-                toast.success("הפריט והשיבוץ נמחקו");
-            } catch (error) {
-                toast.error("שגיאה במחיקת הפריט");
+        if (isCreator) {
+            // המשתמש הוא גם היוצר וגם המשבץ - הפעולה צריכה למחוק את הפריט כולו
+            if (window.confirm("פעולה זו תמחק את הפריט שיצרת ואת כל השיבוצים הקשורים אליו. האם להמשיך?")) {
+                try {
+                    console.log(`[EventPage] User is creator. Deleting entire menu item: ${item.id}`);
+                    await FirebaseService.deleteMenuItem(eventId, item.id);
+                    toast.success("הפריט והשיבוצים שלו נמחקו");
+                } catch (error) {
+                    toast.error("שגיאה במחיקת הפריט");
+                    console.error('[EventPage] Error deleting menu item:', error);
+                }
+            }
+        } else {
+            // המשתמש רק משובץ - הפעולה מבטלת רק את השיבוץ שלו
+            if (window.confirm("האם לבטל את השיבוץ שלך?")) {
+                try {
+                    console.log(`[EventPage] User is not creator. Cancelling assignment: ${assignmentToCancel.id}`);
+                    await FirebaseService.cancelAssignment(eventId, assignmentToCancel.id, assignmentToCancel.menuItemId);
+                    toast.success("השיבוץ בוטל");
+                } catch (error) {
+                    toast.error("שגיאה בביטול השיבוץ");
+                    console.error('[EventPage] Error cancelling assignment:', error);
+                }
             }
         }
-    } else {
-        // המשתמש רק משובץ - מבטלים רק את השיבוץ
-        if (window.confirm("האם לבטל את השיבוץ?")) {
-            try {
-                await FirebaseService.cancelAssignment(eventId, assignment.id, assignment.menuItemId);
-                toast.success("השיבוץ בוטל");
-            } catch (error) {
-                toast.error("שגיאה בביטול השיבוץ");
-            }
-        }
-    }
-};
+        // --- END OF CHANGES ---
+    };
     
-    const handleEditClick = (item: MenuItemType, assignment: AssignmentType) => setModalState({ type: 'edit', item, assignment });
-    const handleBackToCategories = () => { setView('categories'); setSelectedCategory(null); setSearchTerm(''); };
-    const handleCategoryClick = (category: string) => { setSelectedCategory(category); setView('items'); };
+    const handleEditClick = (assignmentToEdit: AssignmentType) => {
+        console.log('[EventPage] handleEditClick triggered for assignment:', assignmentToEdit);
+        const relatedItem = menuItems.find(item => item.id === assignmentToEdit.menuItemId);
+        if (relatedItem) {
+            setModalState({ type: 'edit', item: relatedItem, assignment: assignmentToEdit });
+        } else {
+            toast.error("לא נמצא הפריט המשויך לשיבוץ זה.");
+            console.error(`[EventPage] Could not find item with ID ${assignmentToEdit.menuItemId}`);
+        }
+    };
     
     const handleMyAssignmentsClick = () => { 
         if (view === 'items' && selectedCategory === 'my-assignments') {
@@ -477,18 +497,26 @@ const EventPage: React.FC = () => {
     };
     
     const itemsToDisplay = useMemo(() => {
+        console.log('[EventPage] Recalculating itemsToDisplay...');
         let baseItems = menuItems;
+
         if (searchTerm) {
+            console.log(`[EventPage] Filtering by searchTerm: "${searchTerm}"`);
             baseItems = baseItems.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
         }
+
         if (selectedCategory === 'my-assignments' && localUser) {
-            baseItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id && a.userId === localUser.uid));
+            console.log('[EventPage] Filtering for "my-assignments".');
+            // הצג רק פריטים שלהם יש שיבוץ של המשתמש הנוכחי
+            const myAssignedItemIds = new Set(assignments.filter(a => a.userId === localUser.uid).map(a => a.menuItemId));
+            baseItems = baseItems.filter(item => myAssignedItemIds.has(item.id));
         } else if (selectedCategory) {
+            console.log(`[EventPage] Filtering by category: "${selectedCategory}"`);
             baseItems = baseItems.filter(item => item.category === selectedCategory);
         }
-        const assignedItems = baseItems.filter(item => assignments.some(a => a.menuItemId === item.id));
-        const availableItems = baseItems.filter(item => !assignments.some(a => a.menuItemId === item.id));
-        return [...availableItems, ...assignedItems];
+
+        console.log(`[EventPage] Final items to display count: ${baseItems.length}`);
+        return baseItems;
     }, [searchTerm, selectedCategory, localUser, menuItems, assignments]);
 
     if (isLoading || isEventLoading) {
@@ -677,41 +705,35 @@ const EventPage: React.FC = () => {
   )}
 </div>
         {itemsToDisplay.length > 0 ? (
-            <div className="space-y-6">
-                {(() => {
-                    const availableItems = itemsToDisplay.filter(item => !assignments.some(a => a.menuItemId === item.id));
-                    const assignedItems = itemsToDisplay.filter(item => assignments.some(a => a.menuItemId === item.id));
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {itemsToDisplay.map(item => {
+                    // עבור כל פריט, מצא את כל השיבוצים המשויכים אליו
+                    const itemAssignments = assignments.filter(a => a.menuItemId === item.id);
                     
+                    console.log(`[EventPage] Rendering card for "${item.name}". Found ${itemAssignments.length} assignments.`);
+
                     return (
-                        <>
-                            {availableItems.length > 0 && (
-                                <div>
-                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים פנויים</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {availableItems.map(item => {
-                                            const assignment = assignments.find(a => a.menuItemId === item.id);
-                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {assignedItems.length > 0 && (
-                                <div className={availableItems.length > 0 ? 'pt-6 border-t' : ''}>
-                                    <h3 className="text-md font-semibold text-neutral-700 mb-3">פריטים ששובצו</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {assignedItems.map(item => {
-                                            const assignment = assignments.find(a => a.menuItemId === item.id);
-                                            return <MenuItemCard key={item.id} item={item} assignment={assignment} onAssign={() => handleAssignClick(item)} onEdit={() => handleEditClick(item, assignment!)} onCancel={() => handleCancelClick(assignment!)} isMyAssignment={localUser?.uid === assignment?.userId} isEventActive={isEventActive} />
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </>
+                        <MenuItemCard 
+                            key={item.id} 
+                            item={item} 
+                            assignments={itemAssignments}
+                            myUserId={localUser?.uid}
+                            onAssign={() => handleAssignClick(item)} 
+                            onEdit={handleEditClick}
+                            onCancel={handleCancelClick}
+                            isEventActive={isEventActive} 
+                        />
                     );
-                })()}
+                })}
             </div>
-        ) : <p className="text-center text-neutral-500 py-8">לא נמצאו פריטים.</p>}
+        ) : (
+            <p className="text-center text-neutral-500 py-8">
+                {selectedCategory === 'my-assignments' 
+                    ? 'עדיין לא שובצת לפריטים.' 
+                    : 'לא נמצאו פריטים התואמים לחיפוש.'
+                }
+            </p>
+        )}
     </div>
 )}
              </main>
